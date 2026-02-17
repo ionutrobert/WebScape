@@ -7,14 +7,16 @@ import { visualPositionRef } from '@/client/lib/visualPositionRef';
 import { useEffect } from 'react';
 
 export function LocalPlayer() {
-  const { position, startPosition, facing, equipment } = useGameStore();
+  const { position, startPosition, facing, equipment, tickStartTime, tickDuration } = useGameStore();
   
   const { x, y, isMoving } = usePositionInterpolation(
     position.x, 
     position.y, 
     startPosition.x, 
     startPosition.y, 
-    true
+    true,
+    tickStartTime,
+    tickDuration
   );
   
   useEffect(() => {

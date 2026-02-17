@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/client/stores/gameStore';
 import { SKILLS_CONFIG, xpToLevel, levelProgress } from '@/data/skills';
-import { SkillKey } from '@/shared/types';
+import { SkillKey, PositionUpdate, PlayersUpdate, InitData } from '@/shared/types';
 import { GameLoop } from '@/client/components/GameLoop';
 import { GameScene } from '@/client/components/GameScene';
 import { Backpack, User, Sword, Send } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function GamePage() {
     setUsername: setStoreUsername, addChatMessage,
     setWorldObjects, setPosition, setInventory, setLoaded,
     setPlayerId, setPlayers, playerId, loadClientSettings,
-    setTargetDestination, camera
+    setTargetDestination, camera, cameraRestored
   } = useGameStore();
 
   useEffect(() => {
@@ -55,14 +55,17 @@ export default function GamePage() {
       newSocket.emit('join', username);
     });
 
-    newSocket.on('init', async (data: any) => {
+    newSocket.on('init', async (data: InitData) => {
       myPlayerId = data.playerId;
       setStoreUsername(username);
       setPlayerId(data.playerId);
       setWorldObjects(data.worldObjects);
       
-      const me = data.players?.find((p: any) => p.id === data.playerId);
+      const me = data.players?.find((p) => p.id === data.playerId);
       setPosition(me ? { x: me.x, y: me.y } : { x: 10, y: 10 });
+      
+      useGameStore.getState().tickStartTime = data.tickStartTime;
+      useGameStore.getState().tickDuration = data.tickDuration;
       
       setInventory(Array(28).fill(null));
       setIsLoggingIn(false);
@@ -77,17 +80,17 @@ export default function GamePage() {
       setWorldObjects(world);
     });
 
-    newSocket.on('players-update', (players: any[]) => {
+    newSocket.on('players-update', (data: PlayersUpdate) => {
       const playersMap: Record<string, { id: string; username: string; x: number; y: number; facing: string }> = {};
-      players.forEach(p => {
+      data.players.forEach(p => {
         if (p.id !== myPlayerId) {
           playersMap[p.id] = p;
         }
       });
-      setPlayers(playersMap);
+      setPlayers(playersMap, data.tickStartTime);
     });
 
-    newSocket.on('position-update', (pos: { x: number; y: number; startX: number; startY: number; facing: string }) => {
+    newSocket.on('position-update', (pos: PositionUpdate) => {
       const state = useGameStore.getState();
       const targetDest = state.targetDestination;
       
@@ -95,7 +98,7 @@ export default function GamePage() {
         useGameStore.getState().setTargetDestination(null);
       }
       
-      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY });
+      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY }, pos.tickStartTime);
       if (pos.facing) {
         useGameStore.getState().setFacing(pos.facing as any);
       }
@@ -196,7 +199,7 @@ export default function GamePage() {
         <div className="h-16 flex items-center justify-center border-b border-stone-700 relative overflow-hidden">
           <div 
             className="relative w-12 h-12 rounded-full border-2 border-amber-600 bg-stone-900"
-            style={{ transform: `rotate(${-camera.theta * (180 / Math.PI)}deg)` }}
+            style={{ transform: cameraRestored ? `rotate(${-camera.theta * (180 / Math.PI)}deg)` : undefined }}
           >
             <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-amber-500 font-bold text-xs">N</div>
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-stone-500 font-bold text-xs">S</div>

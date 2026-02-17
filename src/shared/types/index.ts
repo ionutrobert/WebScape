@@ -79,3 +79,25 @@ export interface ServerPlayer {
   y: number;
   facing: string;
 }
+
+export interface PositionUpdate {
+  x: number;
+  y: number;
+  startX: number;
+  startY: number;
+  facing: string;
+  tickStartTime: number;
+}
+
+export interface PlayersUpdate {
+  players: ServerPlayer[];
+  tickStartTime: number;
+}
+
+export interface InitData {
+  playerId: string;
+  players: ServerPlayer[];
+  worldObjects: WorldObjectState[];
+  tickStartTime: number;
+  tickDuration: number;
+}

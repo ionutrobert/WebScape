@@ -2,6 +2,7 @@
 
 import { PlayerModel, DEFAULT_APPEARANCE, PlayerAppearance } from './PlayerModel';
 import { usePositionInterpolation } from '@/client/lib/usePositionInterpolation';
+import { useGameStore } from '@/client/stores/gameStore';
 
 interface RemotePlayerData {
   id: string;
@@ -20,13 +21,17 @@ interface RemotePlayerProps {
 export function RemotePlayer({ player }: RemotePlayerProps) {
   const startX = player.startX ?? player.x;
   const startY = player.startY ?? player.y;
+  const tickStartTime = useGameStore((state) => state.tickStartTime);
+  const tickDuration = useGameStore((state) => state.tickDuration);
   
   const { x, y, isMoving } = usePositionInterpolation(
     player.x, 
     player.y, 
     startX, 
     startY, 
-    true
+    true,
+    tickStartTime,
+    tickDuration
   );
   
   const appearance: PlayerAppearance = {

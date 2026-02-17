@@ -5,7 +5,7 @@ import { playerManager } from './players';
 import { world } from './world';
 import { setMovementTarget } from './actions/movement';
 import { startHarvest } from './actions/harvest';
-import { initTick, startTickLoop } from './tick';
+import { initTick, startTickLoop, getLastTickStartTime, getTickDuration } from './tick';
 import { getOrCreatePlayer, savePlayer } from './database';
 
 const httpServer = createServer();
@@ -28,6 +28,8 @@ io.on('connection', (socket) => {
       playerId: socket.id,
       players: playerManager.getAll(),
       worldObjects: world.getAll(),
+      tickStartTime: getLastTickStartTime(),
+      tickDuration: getTickDuration(),
     });
     
     socket.broadcast.emit('player-joined', { id: socket.id, username });

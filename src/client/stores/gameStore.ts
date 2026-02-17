@@ -39,17 +39,19 @@ interface GameState {
   camera: CameraState;
   cameraRestored: boolean;
   uiTab: 'inventory' | 'skills' | 'equipment';
+  tickStartTime: number;
+  tickDuration: number;
 
   setUsername: (name: string) => void;
   setPlayerId: (id: string) => void;
   setXp: (xp: Record<SkillKey, number>) => void;
   setInventory: (inv: (InventorySlot | null)[]) => void;
   setEquipment: (eq: Record<string, string | null>) => void;
-  setPosition: (pos: Position, startPos?: Position) => void;
+  setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => void;
   setTargetDestination: (target: Position | null) => void;
   setFacing: (facing: FacingDirection) => void;
   setWorldObjects: (objects: WorldObjectState[]) => void;
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>) => void;
+  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => void;
   setCamera: (camera: Partial<CameraState>) => void;
   setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => void;
   loadClientSettings: () => Promise<void>;
@@ -102,20 +104,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   camera: { theta: Math.PI / 4, phi: Math.PI / 4, distance: 15 },
   cameraRestored: false,
   uiTab: 'inventory',
+  tickStartTime: 0,
+  tickDuration: 600,
 
   setUsername: (name) => set({ username: name }),
   setPlayerId: (id) => set({ playerId: id }),
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
-  setPosition: (pos: Position, startPos?: Position) => set((state) => {
+  setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
       : true;
     return { 
       position: pos, 
       startPosition: startPos || pos,
-      isMoving: !hasReachedTarget
+      isMoving: !hasReachedTarget,
+      tickStartTime: tickStartTime ?? state.tickStartTime
     };
   }),
   setTargetDestination: (target) => set((state) => {
@@ -127,7 +132,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   setFacing: (facing) => set({ facing }),
   setIsMoving: (moving: boolean) => set({ isMoving: moving }),
   setWorldObjects: (objects) => set({ worldObjects: objects }),
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>) => set({ players }),
+  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => set((state) => ({ 
+    players,
+    tickStartTime: tickStartTime ?? state.tickStartTime
+  })),
   
   setCamera: (camera: Partial<CameraState>) => {
     const current = get().camera;

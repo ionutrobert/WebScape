@@ -8,6 +8,7 @@ import { useGameStore } from '@/client/stores/gameStore';
 import { Socket } from 'socket.io-client';
 import * as THREE from 'three';
 import { WorldObjectState } from '@/shared/types';
+import { visualPositionRef } from '@/client/lib/visualPositionRef';
 
 interface ServerPlayer {
   id: string;
@@ -27,7 +28,6 @@ function CameraController() {
   const targetRef = useRef(new THREE.Vector3(10, 0, 10));
   const initialized = useRef(false);
   const prevCameraRestored = useRef(cameraRestored);
-  const { visualPositionRef } = require('@/client/lib/visualPositionRef');
 
   useEffect(() => {
     const justRestored = cameraRestored && !prevCameraRestored.current;

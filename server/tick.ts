@@ -6,12 +6,25 @@ import { processHarvests } from './actions/harvest';
 import { OBJECTS_CONFIG } from './config';
 
 let io: Server;
+let lastTickStartTime = 0;
+const TICK_DURATION_MS = 600;
 
 export function initTick(serverIo: Server) {
   io = serverIo;
 }
 
+export function getLastTickStartTime(): number {
+  return lastTickStartTime;
+}
+
+export function getTickDuration(): number {
+  return TICK_DURATION_MS;
+}
+
 export function tick() {
+  lastTickStartTime = Date.now();
+  const tickStartTime = lastTickStartTime;
+  
   const { completed } = processHarvests();
   
   for (const harvest of completed) {
@@ -30,7 +43,8 @@ export function tick() {
         y: result.newY, 
         startX: result.prevX,
         startY: result.prevY,
-        facing: player.facing 
+        facing: player.facing,
+        tickStartTime
       });
     }
   }
@@ -52,7 +66,7 @@ function broadcastPlayers() {
     startY: p.prevY ?? p.y,
     facing: p.facing
   }));
-  io.emit('players-update', players);
+  io.emit('players-update', { players, tickStartTime: lastTickStartTime });
 }
 
 function broadcastWorld() {
