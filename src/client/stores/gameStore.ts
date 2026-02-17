@@ -27,6 +27,7 @@ interface GameState {
   inventory: (InventorySlot | null)[];
   equipment: Record<string, string | null>;
   position: Position;
+  startPosition: Position;
   targetDestination: Position | null;
   facing: FacingDirection;
   isMoving: boolean;
@@ -44,7 +45,7 @@ interface GameState {
   setXp: (xp: Record<SkillKey, number>) => void;
   setInventory: (inv: (InventorySlot | null)[]) => void;
   setEquipment: (eq: Record<string, string | null>) => void;
-  setPosition: (pos: Position) => void;
+  setPosition: (pos: Position, startPos?: Position) => void;
   setTargetDestination: (target: Position | null) => void;
   setFacing: (facing: FacingDirection) => void;
   setWorldObjects: (objects: WorldObjectState[]) => void;
@@ -89,6 +90,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     helm: null,
   },
   position: { x: 10, y: 10 },
+  startPosition: { x: 10, y: 10 },
   targetDestination: null,
   facing: 'south',
   isMoving: false,
@@ -106,12 +108,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
-  setPosition: (pos: Position) => set((state) => {
+  setPosition: (pos: Position, startPos?: Position) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
       : true;
     return { 
       position: pos, 
+      startPosition: startPos || pos,
       isMoving: !hasReachedTarget
     };
   }),

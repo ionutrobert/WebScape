@@ -123,9 +123,9 @@ All game configuration is in `src/data/`:
 - ✅ Skills with XP
 - ✅ Basic UI (sidebar with tabs)
 - ✅ Player model with equipment support
-- ✅ 8-directional facing (corrected)
+- ✅ 8-directional facing
 - ✅ Walking animation
-- ✅ Path-based facing direction
+- ✅ OSRS-style movement interpolation
 
 ## Player System
 
@@ -136,13 +136,19 @@ All game configuration is in `src/data/`:
 - Walking animation (leg swing, arm swing, bobbing)
 - Position: `y = 0` (ground level)
 
-### Facing System
-- Server: `server/facing.ts` - `calculateFacing(fromX, fromY, toX, toY)`
-- Client: `src/client/lib/facing.ts` - `getRotationForFacing(facing)`
-- 8 directions: north, south, east, west, northeast, southeast, southwest, northwest
-- **Important**: Facing is dictated by the previous tick's position to the current position (the actual step taken)
+### Movement System (OSRS-style)
 
-### Player Components
+**Server sends precise movement data:**
+- `position-update`: `{ x, y, startX, startY, facing }`
+- `startX/startY`: Where movement started from
+- `x/y`: Where movement ends
+
+**Client interpolation:**
+- `usePositionInterpolation` hook handles smooth movement
+- Linear interpolation from start → end over exactly 600ms
+- Same approach as OSRS ExactMove system
+
+**Player Components**
 - `LocalPlayer` - Renders the local player with equipment from store
 - `RemotePlayer` - Renders other players
 - World.tsx only renders terrain and objects - players are separate
@@ -196,8 +202,8 @@ Flexbox layout:
 |-------|---------|-------------|
 | `init` | `{ playerId, worldObjects, ... }` | Initial state |
 | `world-update` | `WorldObject[]` | Resource states |
-| `players-update` | `Player[]` | All players |
-| `position-update` | `{ x, y, facing }` | Own position |
+| `players-update` | `{ id, username, x, y, startX, startY, facing }[]` | All players |
+| `position-update` | `{ x, y, startX, startY, facing }` | Own position (for interpolation) |
 | `inventory-update` | `Record<string, number>` | Inventory |
 | `chat` | `{ username, message, type }` | Chat message |
 

@@ -36,7 +36,7 @@ export function clearPath(playerId: string): void {
   playerPaths.delete(playerId);
 }
 
-export function processMovement(playerId: string, isRunning: boolean = false): { moved: boolean; newX: number; newY: number } | null {
+export function processMovement(playerId: string, isRunning: boolean = false): { moved: boolean; newX: number; newY: number; prevX: number; prevY: number } | null {
   const player = playerManager.get(playerId);
   if (!player) return null;
   
@@ -62,6 +62,8 @@ export function processMovement(playerId: string, isRunning: boolean = false): {
   let moved = false;
   let currentX = player.x;
   let currentY = player.y;
+  const prevX = player.x;
+  const prevY = player.y;
   
   for (let i = 0; i < stepsToMove && path.length > 0; i++) {
     const nextStep = path[0];
@@ -82,10 +84,10 @@ export function processMovement(playerId: string, isRunning: boolean = false): {
   
   if (moved) {
     playerManager.movePlayer(playerId, currentX, currentY);
-    return { moved: true, newX: currentX, newY: currentY };
+    return { moved: true, newX: currentX, newY: currentY, prevX, prevY };
   }
   
-  return { moved: false, newX: player.x, newY: player.y };
+  return { moved: false, newX: player.x, newY: player.y, prevX: player.x, prevY: player.y };
 }
 
 export function setMovementTarget(playerId: string, targetX: number, targetY: number): { valid: boolean; reason?: string } {

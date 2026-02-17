@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
 import { PlayerModel, DEFAULT_APPEARANCE, PlayerAppearance } from './PlayerModel';
 import { usePositionInterpolation } from '@/client/lib/usePositionInterpolation';
 
@@ -9,6 +8,8 @@ interface RemotePlayerData {
   username: string;
   x: number;
   y: number;
+  startX?: number;
+  startY?: number;
   facing: string;
 }
 
@@ -17,7 +18,16 @@ interface RemotePlayerProps {
 }
 
 export function RemotePlayer({ player }: RemotePlayerProps) {
-  const { x, y, isMoving } = usePositionInterpolation(player.x, player.y, true);
+  const startX = player.startX ?? player.x;
+  const startY = player.startY ?? player.y;
+  
+  const { x, y, isMoving } = usePositionInterpolation(
+    player.x, 
+    player.y, 
+    startX, 
+    startY, 
+    true
+  );
   
   const appearance: PlayerAppearance = {
     ...DEFAULT_APPEARANCE,
