@@ -8,8 +8,8 @@ export interface ClientSettings {
 }
 
 const DEFAULT_SETTINGS: ClientSettings = {
-  cameraTheta: Math.PI / 4,
-  cameraPhi: Math.PI / 4,
+  cameraTheta: 0.7853981633974483,
+  cameraPhi: 0.7853981633974483,
   cameraDistance: 15,
   uiTab: 'inventory',
   chatVisible: true,

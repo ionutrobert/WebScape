@@ -101,7 +101,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   chatLog: [`Welcome to ${GAME_NAME}! Click a resource to harvest.`],
   isLoaded: false,
   players: {},
-  camera: { theta: Math.PI / 4, phi: Math.PI / 4, distance: 15 },
+  camera: { theta: 0.7853981633974483, phi: 0.7853981633974483, distance: 15 },
   cameraRestored: false,
   uiTab: 'inventory',
   tickStartTime: 0,
