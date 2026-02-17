@@ -17,7 +17,9 @@ export class Pathfinder {
   }
 
   private heuristic(a: Position, b: Position): number {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
+    return Math.max(dx, dy);
   }
 
   private getKey(x: number, y: number): string {
@@ -90,7 +92,7 @@ export class Pathfinder {
 
         const isDiagonal =
           Math.abs(neighbor.x - current.x) + Math.abs(neighbor.y - current.y) === 2;
-        const moveCost = isDiagonal ? 1.4 : 1;
+        const moveCost = isDiagonal ? 1.01 : 1;
 
         const tentativeG = current.g + moveCost;
 

@@ -43,10 +43,12 @@ C:\Work\Projects\Project\
 │   ├── config.ts               # Server config (WORLD_SIZE, OBJECTS_CONFIG)
 │   ├── database.ts             # Prisma SQLite client
 │   ├── world.ts                # World state management
+│   ├── collision.ts            # CollisionManager (grid-based blocking)
+│   ├── pathfinder.ts           # A* pathfinding algorithm
 │   ├── players.ts              # Player session management
 │   ├── tick.ts                 # 600ms tick loop
 │   └── actions/
-│       ├── movement.ts          # Movement logic
+│       ├── movement.ts          # Movement logic (path-based)
 │       └── harvest.ts           # Harvesting logic
 │
 ├── prisma/
@@ -100,7 +102,9 @@ npm run dev
 ## Current Features
 
 - ✅ 3D world with rocks and trees
-- ✅ Player movement (click to move)
+- ✅ Player movement (click to move with A* pathfinding)
+- ✅ Diagonal movement support
+- ✅ Collision detection (world objects block tiles)
 - ✅ Resource harvesting (click adjacent resources)
 - ✅ Multiplayer (Socket.IO)
 - ✅ Position persistence (SQLite)
@@ -111,9 +115,26 @@ npm run dev
 
 ## Known Issues / TODO
 
-- ❌ Collision detection incomplete (needs fixing)
-- ❌ Pathfinding needed (player can't navigate around obstacles)
 - ❌ Player-to-player collision exists (should be removed)
+
+## Pathfinding System
+
+### CollisionManager (`server/collision.ts`)
+- Grid-based blocking system where each tile (x, y) has a `isBlocked` boolean
+- Dynamic updates: Active world objects block tiles, depleted objects don't
+- `getNeighbors()` returns adjacent tiles with diagonal support
+
+### Pathfinder (`server/pathfinder.ts`)
+- A* algorithm with Manhattan distance heuristic
+- `findPath(start, end)` - Returns array of {x, y} steps
+- `findNearestAccessibleTile()` - Finds closest walkable tile to blocked target
+- Diagonal movement: Valid if both corner tiles are unblocked
+
+### Movement Flow
+1. Player clicks target tile → Server calculates A* path
+2. Each 600ms tick → Player moves to next path tile
+3. If target is a resource → Pathfinding finds nearest adjacent tile
+4. Diagonal moves are valid if the diagonal path is clear
 
 ## Camera Controls
 
