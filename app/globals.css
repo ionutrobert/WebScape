@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --tick-ms: 600;
+}
+
+body {
+  background-color: #0c0a09;
+  color: #e7e5e4;
+  font-family: system-ui, -apple-system, sans-serif;
+}

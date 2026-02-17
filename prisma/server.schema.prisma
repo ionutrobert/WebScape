@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./server.db"
+}
+
+model Player {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  createdAt    DateTime @default(now())
+  lastLogin    DateTime @updatedAt
+  
+  x            Int      @default(10)
+  y            Int      @default(10)
+  facing       String   @default("south")
+  
+  hp           Int      @default(100)
+  maxHp        Int      @default(100)
+  energy       Int      @default(100)
+  
+  skills       PlayerSkill[]
+  inventory    InventorySlot[]
+  equipment    Equipment?
+  bank         BankSlot[]
+}
+
+model PlayerSkill {
+  id        String  @id @default(uuid())
+  playerId  String
+  skill     String
+  xp        Int     @default(0)
+  
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  @@unique([playerId, skill])
+}
+
+model InventorySlot {
+  id        String  @id @default(uuid())
+  playerId  String
+  slotIndex Int
+  
+  itemId    String
+  quantity  Int     @default(1)
+  
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  @@unique([playerId, slotIndex])
+}
+
+model Equipment {
+  id        String  @id @default(uuid())
+  playerId  String  @unique
+  
+  head      String?
+  cape     String?
+  neck     String?
+  weapon   String?
+  body     String?
+  legs     String?
+  hands    String?
+  feet     String?
+  ring     String?
+  ammo     String?
+  
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model BankSlot {
+  id        String  @id @default(uuid())
+  playerId  String
+  slotIndex Int
+  
+  itemId    String
+  quantity  Int     @default(1)
+  
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  @@unique([playerId, slotIndex])
+}
