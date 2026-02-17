@@ -1,4 +1,5 @@
 import { Player } from './types';
+import { calculateFacingFromPath } from './facing';
 
 const players = new Map<string, Player>();
 
@@ -6,7 +7,7 @@ export const playerManager = {
   getAll: (): Player[] => Array.from(players.values()),
   
   get: (id: string): Player | undefined => players.get(id),
-  
+
   create: (id: string, username: string, x: number = 10, y: number = 10): Player => {
     const player: Player = {
       id,
@@ -29,6 +30,8 @@ export const playerManager = {
     if (player) {
       player.targetX = x;
       player.targetY = y;
+      player.pathStartX = player.x;
+      player.pathStartY = player.y;
     }
   },
   
@@ -43,8 +46,16 @@ export const playerManager = {
   movePlayer: (id: string, x: number, y: number): void => {
     const player = players.get(id);
     if (player) {
+      const prevX = player.x;
+      const prevY = player.y;
       player.x = x;
       player.y = y;
+      player.facing = calculateFacingFromPath(
+        player.pathStartX ?? prevX,
+        player.pathStartY ?? prevY,
+        x,
+        y
+      );
     }
   },
   

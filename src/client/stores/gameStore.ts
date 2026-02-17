@@ -13,6 +13,7 @@ import { getToolTier, getToolType, ITEMS } from '@/data/items';
 import { OBJECTS, INITIAL_WORLD_OBJECTS } from '@/data/objects';
 import { GAME_NAME } from '@/data/game';
 import { loadSettings, saveSettings, ClientSettings } from '@/client/lib/clientDb';
+import { calculateFacing } from '@/client/lib/facing';
 
 export interface CameraState {
   theta: number;
@@ -29,6 +30,7 @@ interface GameState {
   position: Position;
   targetDestination: Position | null;
   facing: FacingDirection;
+  isMoving: boolean;
   currentAction: PlayerAction | null;
   worldObjects: WorldObjectState[];
   chatLog: string[];
@@ -90,6 +92,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   position: { x: 10, y: 10 },
   targetDestination: null,
   facing: 'south',
+  isMoving: false,
   currentAction: null,
   worldObjects: INITIAL_WORLD_OBJECTS,
   chatLog: [`Welcome to ${GAME_NAME}! Click a resource to harvest.`],
@@ -104,9 +107,31 @@ export const useGameStore = create<GameState>((set, get) => ({
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
-  setPosition: (pos) => set({ position: pos }),
-  setTargetDestination: (target) => set({ targetDestination: target }),
+  setPosition: (pos) => set((state) => {
+    const newFacing = state.targetDestination 
+      ? calculateFacing(state.position.x, state.position.y, state.targetDestination.x, state.targetDestination.y)
+      : state.facing;
+    const hasReachedTarget = state.targetDestination 
+      ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
+      : true;
+    return { 
+      position: pos, 
+      facing: newFacing,
+      isMoving: !hasReachedTarget
+    };
+  }),
+  setTargetDestination: (target) => set((state) => {
+    const newFacing = target 
+      ? calculateFacing(state.position.x, state.position.y, target.x, target.y)
+      : state.facing;
+    return { 
+      targetDestination: target,
+      facing: newFacing,
+      isMoving: target !== null
+    };
+  }),
   setFacing: (facing) => set({ facing }),
+  setIsMoving: (moving: boolean) => set({ isMoving: moving }),
   setWorldObjects: (objects) => set({ worldObjects: objects }),
   setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>) => set({ players }),
   

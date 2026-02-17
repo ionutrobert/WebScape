@@ -70,7 +70,7 @@ export interface Position {
   y: number;
 }
 
-export type FacingDirection = 'north' | 'south' | 'east' | 'west';
+export type FacingDirection = 'north' | 'south' | 'east' | 'west' | 'northeast' | 'southeast' | 'southwest' | 'northwest';
 
 export interface ServerPlayer {
   id: string;

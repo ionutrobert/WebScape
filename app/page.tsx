@@ -26,7 +26,8 @@ export default function GamePage() {
     xp, inventory, chatLog, isLoaded, players,
     setUsername: setStoreUsername, addChatMessage,
     setWorldObjects, setPosition, setInventory, setLoaded,
-    setPlayerId, setPlayers, playerId, loadClientSettings
+    setPlayerId, setPlayers, playerId, loadClientSettings,
+    setTargetDestination, camera
   } = useGameStore();
 
   useEffect(() => {
@@ -87,6 +88,13 @@ export default function GamePage() {
     });
 
     newSocket.on('position-update', (pos: { x: number; y: number }) => {
+      const state = useGameStore.getState();
+      const targetDest = state.targetDestination;
+      
+      if (targetDest && pos.x === targetDest.x && pos.y === targetDest.y) {
+        useGameStore.getState().setTargetDestination(null);
+      }
+      
       setPosition(pos);
     });
 
@@ -119,6 +127,7 @@ export default function GamePage() {
   };
 
   const handleMove = (x: number, y: number) => {
+    setTargetDestination({ x, y });
     socket?.emit('move-to', { x, y });
   };
 
@@ -180,6 +189,20 @@ export default function GamePage() {
       </div>
       
       <div className="w-72 bg-stone-800 border-l border-stone-700 flex flex-col">
+        {/* Compass */}
+        <div className="h-16 flex items-center justify-center border-b border-stone-700 relative overflow-hidden">
+          <div 
+            className="relative w-12 h-12 rounded-full border-2 border-amber-600 bg-stone-900"
+            style={{ transform: `rotate(${-camera.theta * (180 / Math.PI)}deg)` }}
+          >
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-amber-500 font-bold text-xs">N</div>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-stone-500 font-bold text-xs">S</div>
+            <div className="absolute top-1/2 -right-1 -translate-y-1/2 text-stone-500 font-bold text-xs">E</div>
+            <div className="absolute top-1/2 -left-1 -translate-y-1/2 text-stone-500 font-bold text-xs">W</div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-amber-500 rounded-full"></div>
+          </div>
+        </div>
+        
         <div className="flex border-b border-stone-700">
           <button
             onClick={() => setActiveTab('inventory')}

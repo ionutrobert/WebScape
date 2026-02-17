@@ -1,10 +1,11 @@
 'use client';
 
 import { useGameStore } from '@/client/stores/gameStore';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { WorldObjectState } from '@/shared/types';
 import { OBJECTS } from '@/data/objects';
+import { LocalPlayer, RemotePlayer } from './players';
 
 const GRID_SIZE = 20;
 
@@ -57,70 +58,12 @@ function Tile({ x, y, isWalkable, onClick, children }: {
   );
 }
 
-function Player() {
-  const { position, facing, currentAction } = useGameStore();
-  
-  const rotation = {
-    north: Math.PI,
-    south: 0,
-    east: -Math.PI / 2,
-    west: Math.PI / 2,
-  }[facing];
-  
-  return (
-    <group position={[position.x, 0.5, position.y]}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.3, 0.4, 1, 8]} />
-        <meshStandardMaterial color="#d69e2e" />
-      </mesh>
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <sphereGeometry args={[0.25, 8, 8]} />
-        <meshStandardMaterial color="#f6e05e" />
-      </mesh>
-      <mesh 
-        position={[0, 0.7, 0]} 
-        rotation={[0, rotation, 0]}
-      >
-        <boxGeometry args={[0.15, 0.08, 0.3]} />
-        <meshStandardMaterial color="#744210" />
-      </mesh>
-      {currentAction && currentAction.type === 'harvest' && (
-        <mesh position={[0, 1.8, 0]}>
-          <boxGeometry args={[0.5, 0.1, 0.1]} />
-          <meshStandardMaterial color="#22c55e" />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-function OtherPlayer({ player }: { player: ServerPlayer }) {
-  const rotation = {
-    north: Math.PI,
-    south: 0,
-    east: -Math.PI / 2,
-    west: Math.PI / 2,
-  }[player.facing] || 0;
-  
-  return (
-    <group position={[player.x, 0.5, player.y]}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.3, 0.4, 1, 8]} />
-        <meshStandardMaterial color="#3b82f6" />
-      </mesh>
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <sphereGeometry args={[0.25, 8, 8]} />
-        <meshStandardMaterial color="#60a5fa" />
-      </mesh>
-      <mesh 
-        position={[0, 0.7, 0]} 
-        rotation={[0, rotation, 0]}
-      >
-        <boxGeometry args={[0.15, 0.08, 0.3]} />
-        <meshStandardMaterial color="#1e40af" />
-      </mesh>
-    </group>
-  );
+interface ServerPlayer {
+  id: string;
+  username: string;
+  x: number;
+  y: number;
+  facing: string;
 }
 
 function MiningRock({ x, y, isDepleted, onClick }: { x: number; y: number; isDepleted: boolean; onClick?: (e: any) => void }) {
@@ -237,9 +180,9 @@ export function World({ worldObjects, otherPlayers, onMove, onHarvest }: WorldPr
         <meshStandardMaterial color="#1a202c" />
       </mesh>
       {tiles}
-      <Player />
+      <LocalPlayer />
       {(otherPlayers || []).map(player => (
-        <OtherPlayer key={player.id} player={player} />
+        <RemotePlayer key={player.id} player={player} />
       ))}
     </group>
   );

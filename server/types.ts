@@ -7,6 +7,8 @@ export interface Player {
   inventory: Record<string, number>;
   targetX?: number;
   targetY?: number;
+  pathStartX?: number;
+  pathStartY?: number;
 }
 
 export interface WorldObject {

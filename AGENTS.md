@@ -22,11 +22,16 @@ C:\Work\Projects\Project\
 │   │   └── index.ts
 │   │
 │   └── client/                 # Client-side code (Next.js)
-│       ├── components/          # React components
-│       │   ├── GameScene.tsx   # Three.js canvas + camera controller
-│       │   ├── World.tsx       # 3D world rendering
-│       │   ├── GameLoop.tsx    # Client-side tick
-│       │   └── ui/              # UI components
+│   ├── components/          # React components
+│   │   ├── GameScene.tsx   # Three.js canvas + camera controller
+│   │   ├── World.tsx       # 3D world rendering (terrain, objects)
+│   │   ├── GameLoop.tsx    # Client-side tick
+│   │   ├── players/        # Player rendering components
+│   │   │   ├── PlayerModel.tsx   # 3D player model with equipment support
+│   │   │   ├── LocalPlayer.tsx   # Local player wrapper
+│   │   │   ├── RemotePlayer.tsx  # Remote player wrapper
+│   │   │   └── index.ts
+│   │   └── ui/              # UI components
 │       │       ├── HUD.tsx      # Main HUD wrapper
 │       │       ├── ChatBox.tsx  # Chat interface
 │       │       ├── Sidebar.tsx # Right sidebar + icon grid
@@ -35,7 +40,8 @@ C:\Work\Projects\Project\
 │       │   ├── gameStore.ts     # Main game state
 │       │   └── uiStore.ts       # UI state (tabs, etc)
 │       └── lib/
-│           └── clientDb.ts      # IndexedDB for settings
+│           ├── clientDb.ts      # IndexedDB for settings
+│           └── facing.ts         # Facing direction utilities
 │
 ├── server/                     # Server-side (standalone, runs on port 3001)
 │   ├── index.ts                # Entry point, Socket.IO setup
@@ -45,6 +51,7 @@ C:\Work\Projects\Project\
 │   ├── world.ts                # World state management
 │   ├── collision.ts            # CollisionManager (grid-based blocking)
 │   ├── pathfinder.ts           # A* pathfinding algorithm
+│   ├── facing.ts               # Facing direction utilities
 │   ├── players.ts              # Player session management
 │   ├── tick.ts                 # 600ms tick loop
 │   └── actions/
@@ -112,10 +119,32 @@ npm run dev
 - ✅ Inventory system
 - ✅ Skills with XP
 - ✅ Basic UI (sidebar with tabs)
+- ✅ Player model with equipment support
+- ✅ 8-directional facing
+- ✅ Walking animation
 
 ## Known Issues / TODO
 
 - ❌ Player-to-player collision exists (should be removed)
+
+## Player System
+
+### PlayerModel (`src/client/components/players/PlayerModel.tsx`)
+- 3D humanoid model with body, head, arms, legs, feet
+- Equipment support (helm, chest, legs, mainHand)
+- 8-directional rotation based on facing
+- Walking animation (leg swing, arm swing, bobbing)
+- Position: `y = 0` (ground level)
+
+### Facing System
+- Server: `server/facing.ts` - `calculateFacing(fromX, fromY, toX, toY)`
+- Client: `src/client/lib/facing.ts` - `getRotationForFacing(facing)`
+- 8 directions: north, south, east, west, northeast, southeast, southwest, northwest
+
+### Player Components
+- `LocalPlayer` - Renders the local player with equipment from store
+- `RemotePlayer` - Renders other players
+- World.tsx only renders terrain and objects - players are separate
 
 ## Pathfinding System
 
