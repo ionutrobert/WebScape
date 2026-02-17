@@ -35,6 +35,7 @@ interface GameState {
   isLoaded: boolean;
   players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>;
   camera: CameraState;
+  cameraRestored: boolean;
   uiTab: 'inventory' | 'skills' | 'equipment';
 
   setUsername: (name: string) => void;
@@ -95,6 +96,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isLoaded: false,
   players: {},
   camera: { theta: Math.PI / 4, phi: Math.PI / 4, distance: 15 },
+  cameraRestored: false,
   uiTab: 'inventory',
 
   setUsername: (name) => set({ username: name }),
@@ -143,6 +145,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         distance: settings.cameraDistance,
       },
       uiTab: settings.uiTab,
+      cameraRestored: true,
     });
   },
 

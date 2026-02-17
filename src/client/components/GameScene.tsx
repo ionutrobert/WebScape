@@ -18,7 +18,7 @@ interface ServerPlayer {
 }
 
 function CameraController() {
-  const { position, camera: cameraState, setCamera } = useGameStore();
+  const { position, camera: cameraState, setCamera, cameraRestored } = useGameStore();
   const controlsRef = useRef<any>(null);
   const keysPressed = useRef<Set<string>>(new Set());
   const orbitSpeed = 0.03;
@@ -26,17 +26,17 @@ function CameraController() {
   
   const targetRef = useRef(new THREE.Vector3(10, 0, 10));
   const initialized = useRef(false);
-  const prevCameraState = useRef(cameraState);
+  const prevCameraRestored = useRef(cameraRestored);
 
   useEffect(() => {
-    if (initialized.current && 
-        (prevCameraState.current.theta !== cameraState.theta || 
-         prevCameraState.current.phi !== cameraState.phi ||
-         prevCameraState.current.distance !== cameraState.distance)) {
+    const justRestored = cameraRestored && !prevCameraRestored.current;
+    
+    if (justRestored) {
       initialized.current = false;
     }
-    prevCameraState.current = cameraState;
-  }, [cameraState]);
+    
+    prevCameraRestored.current = cameraRestored;
+  }, [cameraRestored]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,8 +105,32 @@ function CameraController() {
       setCamera({ distance: currentSpherical.radius });
     }
 
+    const currentTheta = currentSpherical.theta;
+    const currentPhi = currentSpherical.phi;
+    if (Math.abs(currentTheta - cameraState.theta) > 0.01 || 
+        Math.abs(currentPhi - cameraState.phi) > 0.01) {
+      setCamera({ theta: currentTheta, phi: currentPhi });
+    }
+
     controlsRef.current.update();
   });
+
+  const handleOrbitChange = () => {
+    if (!controlsRef.current || !initialized.current) return;
+    
+    const spherical = new THREE.Spherical();
+    spherical.setFromVector3(camera.position.clone().sub(controlsRef.current.target));
+    
+    if (Math.abs(spherical.radius - cameraState.distance) > 0.1 ||
+        Math.abs(spherical.theta - cameraState.theta) > 0.01 ||
+        Math.abs(spherical.phi - cameraState.phi) > 0.01) {
+      setCamera({ 
+        distance: spherical.radius, 
+        theta: spherical.theta, 
+        phi: spherical.phi 
+      });
+    }
+  };
 
   return (
     <OrbitControls
@@ -119,6 +143,7 @@ function CameraController() {
       zoomSpeed={1}
       minDistance={5}
       maxDistance={40}
+      onChange={handleOrbitChange}
       mouseButtons={{
         LEFT: undefined,
         MIDDLE: THREE.MOUSE.ROTATE,
