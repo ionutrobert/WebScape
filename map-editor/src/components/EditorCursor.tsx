@@ -119,7 +119,7 @@ export function EditorCursor() {
       if (x >= 0 && x < worldWidth && y >= 0 && y < worldHeight) {
         setCursorTile({ x, y });
         
-        if (isDragging && (tool === 'paint' || tool === 'raise' || tool === 'lower' || tool === 'smooth' || tool === 'flatten' || tool === 'noise')) {
+        if (isDragging && (tool === 'paint' || tool === 'raise' || tool === 'lower' || tool === 'smooth' || tool === 'flatten' || tool === 'noise' || tool === 'place' || tool === 'delete')) {
           applyBrush(x, y);
         }
       } else {
