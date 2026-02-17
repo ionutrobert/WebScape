@@ -106,7 +106,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
-  setPosition: (pos) => set((state) => {
+  setPosition: (pos: Position) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
       : true;

@@ -27,6 +27,7 @@ function CameraController() {
   const targetRef = useRef(new THREE.Vector3(10, 0, 10));
   const initialized = useRef(false);
   const prevCameraRestored = useRef(cameraRestored);
+  const { visualPositionRef } = require('@/client/lib/visualPositionRef');
 
   useEffect(() => {
     const justRestored = cameraRestored && !prevCameraRestored.current;
@@ -61,7 +62,7 @@ function CameraController() {
   useFrame(() => {
     if (!controlsRef.current) return;
 
-    const playerPos = new THREE.Vector3(position.x, 0, position.y);
+    const playerPos = new THREE.Vector3(visualPositionRef.x, 0, visualPositionRef.y);
     
     if (!initialized.current) {
       targetRef.current.copy(playerPos);

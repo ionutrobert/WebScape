@@ -34,3 +34,16 @@ export function getRotationForFacing(facing: string | FacingDirection): number {
   
   return rotations[facing as FacingDirection] ?? 0;
 }
+
+export function getRotationDifference(from: number, to: number): number {
+  let diff = to - from;
+  
+  while (diff > Math.PI) {
+    diff -= Math.PI * 2;
+  }
+  while (diff < -Math.PI) {
+    diff += Math.PI * 2;
+  }
+  
+  return diff;
+}

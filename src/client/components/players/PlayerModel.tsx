@@ -2,7 +2,8 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FacingDirection } from '@/shared/types';
-import { getRotationForFacing } from '@/client/lib/facing';
+import { getRotationForFacing, getRotationDifference } from '@/client/lib/facing';
+import { useFacingInterpolation } from '@/client/lib/useFacingInterpolation';
 
 export interface PlayerAppearance {
   bodyColor: string;
@@ -55,7 +56,7 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isLocalPlayer 
   const armLeftGroupRef = useRef<THREE.Group>(null);
   const armRightGroupRef = useRef<THREE.Group>(null);
   
-  const rotation = getRotationForFacing(facing);
+  const rotation = useFacingInterpolation(facing, isMoving || isLocalPlayer);
   
   useFrame((_, delta) => {
     if (!groupRef.current) return;
