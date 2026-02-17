@@ -30,6 +30,8 @@ export const playerManager = {
     if (player) {
       player.targetX = x;
       player.targetY = y;
+      player.prevX = player.x;
+      player.prevY = player.y;
     }
   },
   
