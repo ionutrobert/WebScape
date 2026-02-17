@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
     });
     
     socket.broadcast.emit('player-joined', { id: socket.id, username });
-    io.emit('players-update', playerManager.getAll());
+    io.emit('players-update', { players: playerManager.getAll(), tickStartTime: getLastTickStartTime() });
     
     console.log(`${username} joined at (${dbPlayer.x}, ${dbPlayer.y})`);
   });
@@ -70,7 +70,7 @@ io.on('connection', (socket) => {
       console.log(`${player.username} disconnected, saved position (${player.x}, ${player.y})`);
     }
     playerManager.remove(socket.id);
-    io.emit('players-update', playerManager.getAll());
+    io.emit('players-update', { players: playerManager.getAll(), tickStartTime: getLastTickStartTime() });
     console.log('Socket disconnected:', socket.id);
   });
 });

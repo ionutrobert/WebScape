@@ -19,7 +19,7 @@ export function EditorWorld() {
     
     for (let i = 0; i < positions.length; i += 3) {
       const x = Math.floor(positions[i] + worldWidth / 2);
-      const y = Math.floor(positions[i + 1] + worldHeight / 2);
+      const y = Math.floor(-positions[i + 1] + worldHeight / 2);
       
       const key = `${x},${y}`;
       const tile = tiles.get(key);
@@ -61,7 +61,7 @@ export function EditorWorld() {
     
     for (let i = 0; i < positions.length; i += 3) {
       const x = Math.floor(positions[i] + worldWidth / 2);
-      const y = Math.floor(positions[i + 1] + worldHeight / 2);
+      const y = Math.floor(-positions[i + 1] + worldHeight / 2);
       
       const waterTile = waterTiles.find(w => w.x === x && w.y === y);
       if (waterTile) {

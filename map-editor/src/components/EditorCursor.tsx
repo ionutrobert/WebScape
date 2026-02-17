@@ -114,7 +114,7 @@ export function EditorCursor() {
     
     if (intersect) {
       const x = Math.floor(intersect.x + worldWidth / 2);
-      const y = Math.floor(intersect.z + worldHeight / 2);
+      const y = Math.floor(-intersect.z + worldHeight / 2);
       
       if (x >= 0 && x < worldWidth && y >= 0 && y < worldHeight) {
         setCursorTile({ x, y });
@@ -144,7 +144,7 @@ export function EditorCursor() {
   if (!cursorTile) return null;
   
   const worldX = cursorTile.x - worldWidth / 2 + 0.5;
-  const worldZ = cursorTile.y - worldHeight / 2 + 0.5;
+  const worldZ = -cursorTile.y + worldHeight / 2 - 0.5;
   const tile = tiles.get(`${cursorTile.x},${cursorTile.y}`);
   const worldY = (tile?.height || 0) + 0.05;
   
