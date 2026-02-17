@@ -1,4 +1,4 @@
-# WebScape - Project Specification & Standards Document
+# WebScape - Project Specification
 
 ## 1. Core Architecture Philosophy
 
@@ -15,9 +15,9 @@
 ### 1.3 Separation of Concerns
 ```
 /data/        - Pure Config: Items, Skills, Objects (JSON-like configs)
-/engine/       - Server Core: Tick loop, Action Resolver, World Manager  
-/client/       - Three.js: Rendering, Input, Camera
-/shared/       - Types & Utilities: Used by both server and client
+/shared/      - Types: Interfaces used by both server and client
+/client/      - Three.js: Rendering, Input, Camera, UI
+/server/      - Game Logic: Tick loop, Actions, Pathfinding
 ```
 
 ---
@@ -25,55 +25,66 @@
 ## 2. Folder Structure
 
 ```
-openscape/
+WebScape/
 ├── src/
 │   ├── data/                    # Pure configuration data
+│   │   ├── game.ts             # Game name and settings
 │   │   ├── items.ts            # Item definitions
-│   │   ├── skills.ts           # Skill definitions  
+│   │   ├── skills.ts           # Skill definitions + XP calculations
 │   │   └── objects.ts          # World object definitions
 │   │
-│   ├── engine/                  # Server-side game logic
-│   │   ├── index.ts            # Main server entry
-│   │   ├── tick.ts            # The 600ms tick loop
-│   │   ├── world.ts           # World state management
-│   │   ├── actions/           # Action handlers
-│   │   │   ├── movement.ts    # Movement logic
-│   │   │   ├── harvest.ts    # Mining/Woodcutting
-│   │   │   └── combat.ts      # Combat (future)
-│   │   └── players.ts         # Player session management
+│   ├── shared/
+│   │   └── types/
+│   │       └── index.ts        # Shared interfaces
 │   │
-│   ├── client/                 # Browser/Three.js
-│   │   ├── app/               # Next.js pages
-│   │   │   └── page.tsx      
-│   │   ├── components/        # React components
-│   │   │   ├── GameScene.tsx
-│   │   │   ├── World.tsx
-│   │   │   └── UI/
-│   │   └── stores/            # Client state (Zustand)
-│   │
-│   └── shared/                # Shared types & utils
-│       ├── types/
-│       │   └── index.ts        # All interfaces
-│       └── utils/
-│           └── xp.ts           # XP calculations
+│   └── client/                 # Browser/Three.js
+│       ├── components/         # React components
+│       │   ├── GameScene.tsx  # Three.js canvas
+│       │   ├── World.tsx      # 3D world rendering
+│       │   ├── GameLoop.tsx   # Client tick
+│       │   ├── players/       # Player rendering
+│       │   └── ui/            # UI components
+│       ├── stores/            # Zustand state
+│       │   ├── gameStore.ts  # Main game state
+│       │   └── uiStore.ts   # UI state
+│       └── lib/              # Client utilities
+│           ├── clientDb.ts   # IndexedDB
+│           └── facing.ts    # Facing utilities
 │
-├── server/                     # Server entry point (simplified)
-│   └── index.ts
+├── server/                     # Server-side
+│   ├── index.ts               # Entry point
+│   ├── tick.ts               # 600ms tick loop
+│   ├── config.ts              # Server config
+│   ├── types.ts               # Server interfaces
+│   ├── database.ts            # Prisma client
+│   ├── world.ts              # World management
+│   ├── collision.ts           # Collision system
+│   ├── pathfinder.ts          # A* pathfinding
+│   ├── facing.ts             # Facing utilities
+│   ├── players.ts            # Player management
+│   └── actions/
+│       ├── movement.ts       # Movement logic
+│       └── harvest.ts        # Harvesting logic
 │
-└── config/                    # Additional configs
-    └── skills.config.ts
+├── prisma/
+│   └── server.schema.prisma  # Database schema
+│
+└── app/                      # Next.js
+    ├── page.tsx             # Main game page
+    ├── layout.tsx
+    └── globals.css
 ```
 
 ---
 
-## 3. Data Layer (`/data/`)
+## 3. Data Layer (`src/data/`)
 
 ### Principles
 - **Pure data** - No logic, just definitions
 - **Declarative** - Easy to add new content
 - **Type-safe** - Full TypeScript interfaces
 
-### Example: items.ts
+### Items (`items.ts`)
 ```typescript
 export const ITEMS = {
   bronze_pickaxe: {
@@ -89,13 +100,11 @@ export const ITEMS = {
     stackable: true,
   },
 } as const;
-
-export type ItemId = keyof typeof ITEMS;
 ```
 
 ---
 
-## 4. Engine Layer (`/engine/`)
+## 4. Server Layer (`server/`)
 
 ### Principles
 - **Server-authoritative** - All game logic lives here
@@ -104,76 +113,68 @@ export type ItemId = keyof typeof ITEMS;
 
 ### Core Components
 
-#### 4.1 Tick Loop (`tick.ts`)
+#### Tick Loop (`tick.ts`)
 ```typescript
 // Runs every 600ms
 function tick() {
+  processHarvests();
   processPlayerMovements();
-  processActions();
-  processWorldRespawns();
   broadcastState();
 }
 ```
 
-#### 4.2 Action Resolver
-- Validates player actions (distance, requirements)
-- Queues actions to execute on tick
-- Awards XP and items upon completion
+#### Player Management (`players.ts`)
+- Tracks all connected players
+- Manages player state (position, facing, inventory)
+- Handles movement and targeting
 
-#### 4.3 World Manager
+#### World Management (`world.ts`)
 - Tracks all world objects (rocks, trees)
 - Manages depletion/respawn timers
-- Validates collision
+- Provides collision checking
 
 ---
 
-## 5. Shared Layer (`/shared/`)
+## 5. Shared Layer (`src/shared/`)
 
 ### Principles
 - **Zero dependencies** - No Node.js or Browser-specific code
 - **Type-safe** - Complete TypeScript definitions
-- **Immutable** - Read-only data structures
 
 ### Core Types
 ```typescript
-// Player state (server-side)
+interface Position {
+  x: number;
+  y: number;
+}
+
+type FacingDirection = 'north' | 'south' | 'east' | 'west' | 
+                       'northeast' | 'northwest' | 'southeast' | 'southwest';
+
 interface Player {
   id: string;
   username: string;
   x: number;
   y: number;
-  facing: 'north' | 'south' | 'east' | 'west';
+  facing: string;
   inventory: Record<string, number>;
-  skills: Record<SkillKey, number>;
 }
 
-// World object state
-interface WorldObject {
+interface WorldObjectState {
   position: { x: number; y: number };
   definitionId: string;
   status: 'active' | 'depleted';
   ticksUntilRespawn: number;
 }
-
-// Network messages
-interface ServerToClient {
-  type: 'state-update' | 'player-joined' | 'inventory-update';
-  payload: any;
-}
-
-interface ClientToServer {
-  type: 'join' | 'move-to' | 'harvest' | 'chat';
-  payload: any;
-}
 ```
 
 ---
 
-## 6. Client Layer (`/client/`)
+## 6. Client Layer (`src/client/`)
 
 ### Principles
 - **Stateless rendering** - Receives state, renders it
-- **Optimistic UI** - Minor client-side prediction for smoothness
+- **Minimal prediction** - Only for camera smoothness
 - **Input forwarder** - Sends actions to server, doesn't execute them
 
 ### State Management
@@ -183,29 +184,9 @@ interface ClientToServer {
 
 ---
 
-## 7. Naming Conventions
+## 7. Communication Protocol
 
-### Files
-- `camelCase.ts` for utilities
-- `PascalCase.tsx` for React components
-- `kebab-case.ts` for config files
-
-### Variables
-- `camelCase` for variables and functions
-- `PascalCase` for Types and Interfaces
-- `UPPER_SNAKE_CASE` for constants
-
-### Components
-- `GameScene.tsx` - Main 3D canvas
-- `World.tsx` - Renders game world
-- `CameraController.tsx` - Camera logic
-- `UI/` - Sidebar components
-
----
-
-## 8. Communication Protocol
-
-### Client → Server Events
+### Client → Server
 | Event | Payload | Description |
 |-------|---------|-------------|
 | `join` | `{ username: string }` | Player joins |
@@ -213,67 +194,57 @@ interface ClientToServer {
 | `harvest` | `{ x, y, objectId }` | Harvest resource |
 | `chat` | `{ message: string }` | Send chat |
 
-### Server → Client Events
+### Server → Client
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `init` | `{ playerId, worldObjects }` | Initial state |
+| `init` | `{ playerId, worldObjects, players }` | Initial state |
 | `world-update` | `WorldObject[]` | World state |
 | `players-update` | `Player[]` | Other players |
-| `inventory-update` | `Record<string, number>` | Player inventory |
+| `position-update` | `{ x, y, facing }` | Own position |
+| `inventory-update` | `Record<string, number>` | Inventory |
 | `chat` | `{ username, message, type }` | Chat message |
 
 ---
 
-## 9. Tick Synchronization
+## 8. Tick Synchronization
 
 ### Server Tick (600ms)
-1. Process pending movements (1 tile per tick)
-2. Process action progress
-3. Check resource depletion
-4. Process respawns
-5. Broadcast state to all clients
+1. Process pending harvests
+2. Process player movements (1 tile per tick)
+3. Check resource depletion/respawn
+4. Broadcast state to all clients
 
 ### Client Rendering
 - 60fps for smooth camera/movement
-- Interpolates player positions between ticks
-- Updates world state on each `world-update`
+- Updates state on each socket event
 
 ---
 
-## 10. Code Style Rules
+## 9. Code Style Rules
 
 ### Do's
 - ✅ Use strict TypeScript
 - ✅ Define types in `/shared/`
 - ✅ Keep components small and focused
 - ✅ Use meaningful variable names
-- ✅ Comment complex logic
 
 ### Don'ts
 - ❌ Don't put game logic in client
 - ❌ Don't skip type definitions
 - ❌ Don't use `any` unless absolutely necessary
-- ❌ Don't duplicate code - extract to shared utilities
-- ❌ Don't make server wait for client
+- ❌ Don't duplicate code
 
 ---
 
-## 11. Future Scalability
+## 10. Future Features
 
-### Planned Features
-- **Combat System** - Melee/ranged combat with damage calculation
-- **Quest System** - Quest definitions and tracking
-- **Banking** - Bank inventory storage
-- **Trading** - Player-to-player trading
-- **Clans** - Group social systems
-
-### Adding New Content
-1. Add definition to `/data/`
-2. Add logic to `/engine/`
-3. Add renderer to `/client/`
-4. Types automatically shared
+- Combat System
+- Quest System
+- Banking
+- Trading
+- Clans
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 2.0*
 *Last Updated: 2026-02-17*
