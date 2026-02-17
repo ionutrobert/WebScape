@@ -48,7 +48,9 @@ export async function initializeWorld(width: number, height: number): Promise<vo
 
 export async function saveWorldToDb(
   tiles: Map<string, TileData>,
-  objects: WorldObjectState[]
+  objects: WorldObjectState[],
+  worldWidth: number,
+  worldHeight: number
 ): Promise<void> {
   try {
     const tilesArray = Array.from(tiles.values());
@@ -57,8 +59,8 @@ export async function saveWorldToDb(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        width: 32,
-        height: 32,
+        width: worldWidth,
+        height: worldHeight,
         tiles: tilesArray,
         objects
       })

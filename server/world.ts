@@ -5,8 +5,8 @@ import { getWorldConfig, getWorldObjects, serverDb } from './database';
 
 let collisionManager: CollisionManager;
 let worldObjects: WorldObject[] = [];
-let worldWidth = 32;
-let worldHeight = 32;
+let worldWidth = 20;
+let worldHeight = 20;
 
 export async function initializeWorld(): Promise<void> {
   const config = await getWorldConfig();

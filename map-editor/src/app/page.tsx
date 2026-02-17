@@ -17,13 +17,13 @@ export default function EditorPage() {
         if (data) {
           setWorldSize(data.width, data.height);
         } else {
-          await initializeWorld(32, 32);
-          setWorldSize(32, 32);
+          await initializeWorld(20, 20);
+          setWorldSize(20, 20);
         }
       } catch (err) {
         console.error('Failed to load world:', err);
-        await initializeWorld(32, 32);
-        setWorldSize(32, 32);
+        await initializeWorld(20, 20);
+        setWorldSize(20, 20);
       }
       setLoading(false);
     }

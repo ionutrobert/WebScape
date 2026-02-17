@@ -66,8 +66,8 @@ const getTileKey = (x: number, y: number) => `${x},${y}`;
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   isLoading: true,
-  worldWidth: 32,
-  worldHeight: 32,
+  worldWidth: 20,
+  worldHeight: 20,
   tiles: new Map(),
   objects: [],
   

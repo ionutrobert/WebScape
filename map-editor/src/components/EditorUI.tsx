@@ -77,7 +77,7 @@ export function EditorUI() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveWorldToDb(tiles, objects);
+      await saveWorldToDb(tiles, objects, worldWidth, worldHeight);
       alert('World saved!');
     } catch (err) {
       console.error('Save failed:', err);
