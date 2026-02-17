@@ -25,7 +25,7 @@ export function tick() {
   for (const player of playerManager.getAll()) {
     const result = processMovement(player.id);
     if (result?.moved) {
-      io.to(player.id).emit('position-update', { x: result.newX, y: result.newY });
+      io.to(player.id).emit('position-update', { x: result.newX, y: result.newY, facing: player.facing });
     }
   }
   

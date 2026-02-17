@@ -87,7 +87,7 @@ export default function GamePage() {
       setPlayers(playersMap);
     });
 
-    newSocket.on('position-update', (pos: { x: number; y: number }) => {
+    newSocket.on('position-update', (pos: { x: number; y: number; facing: string }) => {
       const state = useGameStore.getState();
       const targetDest = state.targetDestination;
       
@@ -96,6 +96,9 @@ export default function GamePage() {
       }
       
       setPosition(pos);
+      if (pos.facing) {
+        useGameStore.getState().setFacing(pos.facing as any);
+      }
     });
 
     newSocket.on('inventory-update', (inv: Record<string, number>) => {

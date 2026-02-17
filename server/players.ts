@@ -1,5 +1,5 @@
 import { Player } from './types';
-import { calculateFacingFromPath } from './facing';
+import { calculateFacing } from './facing';
 
 const players = new Map<string, Player>();
 
@@ -30,8 +30,6 @@ export const playerManager = {
     if (player) {
       player.targetX = x;
       player.targetY = y;
-      player.pathStartX = player.x;
-      player.pathStartY = player.y;
     }
   },
   
@@ -46,16 +44,13 @@ export const playerManager = {
   movePlayer: (id: string, x: number, y: number): void => {
     const player = players.get(id);
     if (player) {
-      const prevX = player.x;
-      const prevY = player.y;
+      const prevX = player.prevX ?? player.x;
+      const prevY = player.prevY ?? player.y;
+      player.prevX = player.x;
+      player.prevY = player.y;
       player.x = x;
       player.y = y;
-      player.facing = calculateFacingFromPath(
-        player.pathStartX ?? prevX,
-        player.pathStartY ?? prevY,
-        x,
-        y
-      );
+      player.facing = calculateFacing(prevX, prevY, x, y);
     }
   },
   

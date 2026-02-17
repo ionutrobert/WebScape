@@ -17,7 +17,3 @@ export function calculateFacing(fromX: number, fromY: number, toX: number, toY: 
   
   return 'south';
 }
-
-export function calculateFacingFromPath(startX: number, startY: number, currentX: number, currentY: number): string {
-  return calculateFacing(startX, startY, currentX, currentY);
-}
