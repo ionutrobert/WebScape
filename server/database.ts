@@ -1,6 +1,33 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import path from 'node:path';
 
-export const serverDb = new PrismaClient();
+const dbPath = path.resolve(process.cwd(), 'prisma/server.db');
+const adapter = new PrismaBetterSqlite3({ url: dbPath });
+export const serverDb = new PrismaClient({ adapter: adapter as any });
+
+export async function getWorldConfig(): Promise<{ width: number; height: number } | null> {
+  const config = await serverDb.worldConfig.findFirst({ where: { id: 'default' } });
+  return config ? { width: config.width, height: config.height } : null;
+}
+
+export async function getWorldObjects(): Promise<any[]> {
+  const objects = await serverDb.worldObject.findMany();
+  return objects.map(o => ({
+    position: { x: o.x, y: o.y },
+    definitionId: o.definitionId,
+    status: o.status,
+    ticksUntilRespawn: 0,
+    harvestProgress: 0
+  }));
+}
+
+export async function getTileHeight(x: number, y: number): Promise<number> {
+  const tile = await serverDb.worldTile.findUnique({
+    where: { x_y: { x, y } }
+  });
+  return tile?.height ?? 0;
+}
 
 export interface PlayerData {
   id: string;

@@ -3,21 +3,23 @@ import { world } from '../world';
 import { WORLD_SIZE } from '../config';
 import { Pathfinder } from '../pathfinder';
 
-const pathfinder = new Pathfinder(world.getCollisionManager());
+const playerPaths: Map<string, PathStep[]> = new Map();
+
+function getPathfinder(): Pathfinder {
+  return new Pathfinder(world.getCollisionManager());
+}
 
 export interface PathStep {
   x: number;
   y: number;
 }
 
-const playerPaths: Map<string, PathStep[]> = new Map();
-
 export function isValidPosition(x: number, y: number): boolean {
   return x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE;
 }
 
 export function calculatePath(playerId: string, startX: number, startY: number, targetX: number, targetY: number): PathStep[] {
-  const path = pathfinder.findPath(
+  const path = getPathfinder().findPath(
     { x: startX, y: startY },
     { x: targetX, y: targetY },
     true,
@@ -102,7 +104,7 @@ export function setMovementTarget(playerId: string, targetX: number, targetY: nu
   
   if (world.isBlocked(targetX, targetY)) {
     const targetTile = { x: targetX, y: targetY };
-    const nearest = pathfinder.findNearestAccessibleTile(
+    const nearest = getPathfinder().findNearestAccessibleTile(
       { x: player.x, y: player.y },
       [targetTile],
       true

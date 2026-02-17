@@ -237,7 +237,172 @@ interface GameState {
 
 ---
 
-## 8. Future Features
+## 8. Animation Synchronization System
+
+### 8.1 Core Principles
+
+All game animations must be **synchronized to server ticks**. The server is authoritative for timing, and the client interpolates visually.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TICK TIMELINE (600ms)                         │
+│                                                                  │
+│  0ms        150ms       300ms       450ms       600ms           │
+│   │          │           │           │           │              │
+│   ▼          ▼           ▼           ▼           ▼              │
+│   ├──────────┼───────────┼───────────┼───────────┤              │
+│   │   Animation Progress: 0% → 25% → 50% → 75% → 100%          │
+│   │                                                             │
+│   │  Server: Processes movement at 0ms, sends update            │
+│   │  Client: Receives at ~50-100ms (network latency)            │
+│   │  Client: Calculates remaining time and interpolates         │
+│   │  Result: Character arrives at tile exactly at 600ms         │
+│   │                                                             │
+└───┴─────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Server Responsibilities
+
+**Send tick timing with every update:**
+```typescript
+// server/tick.ts
+export function tick() {
+  const tickStartTime = Date.now();  // When THIS tick started
+  
+  // ... process movement ...
+  
+  io.to(player.id).emit('position-update', {
+    x: result.newX,
+    y: result.newY,
+    startX: result.prevX,
+    startY: result.prevY,
+    facing: player.facing,
+    tickStartTime  // Critical for sync
+  });
+}
+```
+
+**Tick timing data:**
+- `tickStartTime`: Unix timestamp when the server tick began
+- `tickDuration`: 600ms (configurable)
+- Client uses these to calculate animation progress
+
+### 8.3 Client Responsibilities
+
+**Position Interpolation** (`src/client/lib/usePositionInterpolation.ts`):
+```typescript
+interface InterpolationResult {
+  x: number;              // Visual X position (interpolated)
+  y: number;              // Visual Y position (interpolated)
+  isMoving: boolean;      // Currently animating
+  movementProgress: number; // 0.0 to 1.0 - critical for animation sync
+}
+
+// Usage:
+const { x, y, isMoving, movementProgress } = usePositionInterpolation(
+  targetX, targetY, startX, startY,
+  true, tickStartTime, tickDuration
+);
+```
+
+**Animation Sync Formula:**
+```typescript
+// Calculate elapsed time since tick started
+const elapsed = Date.now() - tickStartTime;
+
+// Calculate progress (0.0 to 1.0)
+const progress = Math.min(1, elapsed / tickDuration);
+
+// Use progress for visual interpolation
+const visualX = startX + (targetX - startX) * progress;
+const visualY = startY + (targetY - startY) * progress;
+
+// Use progress for animation phases
+const walkCyclePhase = progress * Math.PI * 2;  // One full cycle per tile
+```
+
+### 8.4 Walk Animation Sync
+
+**The walk animation must complete exactly one cycle per tile:**
+
+```typescript
+// PlayerModel.tsx
+useFrame(() => {
+  if (isMoving && movementProgress !== undefined) {
+    // One complete walk cycle (2π) per tile movement
+    const walkPhase = movementProgress * Math.PI * 2;
+    
+    // Leg swing: -0.5 to +0.5 radians, complete cycle per tile
+    const legSwing = Math.sin(walkPhase) * 0.5;
+    legLeftGroupRef.current.rotation.x = legSwing;
+    legRightGroupRef.current.rotation.x = -legSwing;
+    
+    // Arm swing: opposite to legs, slightly less amplitude
+    const armSwing = Math.sin(walkPhase) * 0.4;
+    armLeftGroupRef.current.rotation.x = -armSwing;
+    armRightGroupRef.current.rotation.x = armSwing;
+    
+    // Body bob: up/down motion synced to walk
+    const bob = Math.abs(Math.sin(walkPhase)) * 0.05;
+    groupRef.current.position.y = baseY + bob;
+  }
+});
+```
+
+### 8.5 Animation Rules
+
+1. **One cycle per tile**: Walk animation completes one full cycle (left leg forward → right leg forward → center) per tile moved
+2. **Progress-based, not time-based**: Use `movementProgress` (0.0-1.0) instead of `delta * speed`
+3. **Server timing is authority**: Always use `tickStartTime` from server, not client clock
+4. **Handle latency**: If update arrives late, animation catches up or snaps to position
+5. **Smooth interpolation**: Linear interpolation for position, sinusoidal for natural feel
+
+### 8.6 Extending for Other Animations
+
+**Mining Animation Example:**
+```typescript
+interface MiningAnimationProps {
+  progress: number;  // 0.0 to 1.0 over the mining duration
+  ticksTotal: number;
+}
+
+function useMiningAnimation(progress: number) {
+  // Swing pickaxe: 2 cycles per mining tick
+  const swingPhase = progress * Math.PI * 4;
+  const armAngle = Math.sin(swingPhase) * 1.2;
+  
+  return { armAngle };
+}
+```
+
+**Combat Animation Example:**
+```typescript
+function useAttackAnimation(tickProgress: number, attackSpeed: number) {
+  // attackSpeed = ticks per attack
+  const attackPhase = tickProgress * Math.PI * 2;
+  
+  // Wind up -> strike -> recover
+  const swingAngle = Math.sin(attackPhase) * 1.5;
+  
+  return { swingAngle };
+}
+```
+
+### 8.7 Animation Module Structure
+
+```
+src/client/lib/
+├── usePositionInterpolation.ts  # Core interpolation hook
+├── animations/
+│   ├── index.ts                 # Export all animations
+│   ├── walk.ts                  # Walk animation utilities
+│   ├── harvest.ts               # Mining/woodcutting animations
+│   └── combat.ts                # Attack/defense animations
+```
+
+---
+
+## 9. Future Features
 
 - Combat System (melee/ranged)
 - Quest System
@@ -247,6 +412,7 @@ interface GameState {
 
 ---
 
-*Document Version: 2.0*
+*Document Version: 3.0*
 *Architecture: Server-Authoritative MMORPG*
 *Tick Rate: 600ms*
+*Animation System: Tick-Synchronized Progress-Based*

@@ -2,11 +2,15 @@ import { Server } from 'socket.io';
 import { createServer } from 'http';
 
 import { playerManager } from './players';
-import { world } from './world';
+import { world, initializeWorld } from './world';
 import { setMovementTarget } from './actions/movement';
 import { startHarvest } from './actions/harvest';
 import { initTick, startTickLoop, getLastTickStartTime, getTickDuration } from './tick';
 import { getOrCreatePlayer, savePlayer } from './database';
+
+initializeWorld().then(() => {
+  console.log('World loaded from database');
+});
 
 const httpServer = createServer();
 const io = new Server(httpServer, {

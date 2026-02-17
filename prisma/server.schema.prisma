@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./server.db"
 }
 
 model Player {
@@ -80,4 +79,32 @@ model BankSlot {
   player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
   
   @@unique([playerId, slotIndex])
+}
+
+model WorldConfig {
+  id        String  @id @default("default")
+  width     Int     @default(32)
+  height    Int     @default(32)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorldTile {
+  x          Int
+  y          Int
+  tileType   String  @default("grass")
+  height     Float   @default(0.0)
+  
+  @@id([x, y])
+}
+
+model WorldObject {
+  id           String  @id @default(uuid())
+  x            Int
+  y            Int
+  definitionId String
+  heightOffset Float   @default(0.0)
+  status       String  @default("active")
+  
+  @@unique([x, y])
 }

@@ -1,18 +1,45 @@
 import { WorldObject } from './types';
-import { INITIAL_WORLD_OBJECTS, OBJECTS_CONFIG, WORLD_SIZE } from './config';
+import { OBJECTS_CONFIG } from './config';
 import { CollisionManager } from './collision';
+import { getWorldConfig, getWorldObjects, serverDb } from './database';
 
-const collisionManager = new CollisionManager(WORLD_SIZE, WORLD_SIZE);
+let collisionManager: CollisionManager;
+let worldObjects: WorldObject[] = [];
+let worldWidth = 32;
+let worldHeight = 32;
 
-let worldObjects: WorldObject[] = JSON.parse(JSON.stringify(INITIAL_WORLD_OBJECTS));
-
-for (const obj of worldObjects) {
-  if (obj.status === 'active') {
-    collisionManager.setBlocked(obj.position.x, obj.position.y, true);
+export async function initializeWorld(): Promise<void> {
+  const config = await getWorldConfig();
+  if (config) {
+    worldWidth = config.width;
+    worldHeight = config.height;
   }
+  
+  collisionManager = new CollisionManager(worldWidth, worldHeight);
+  
+  const objects = await getWorldObjects();
+  worldObjects = objects;
+  
+  for (const obj of worldObjects) {
+    if (obj.status === 'active') {
+      collisionManager.setBlocked(obj.position.x, obj.position.y, true);
+    }
+  }
+  
+  console.log(`World initialized: ${worldWidth}x${worldHeight}, ${worldObjects.length} objects`);
+}
+
+export async function getTileHeight(x: number, y: number): Promise<number> {
+  const tile = await serverDb.worldTile.findUnique({
+    where: { x_y: { x, y } }
+  });
+  return tile?.height ?? 0;
 }
 
 export const world = {
+  getWidth: () => worldWidth,
+  getHeight: () => worldHeight,
+  
   getAll: (): WorldObject[] => worldObjects,
   
   getCollisionManager: (): CollisionManager => collisionManager,
@@ -22,7 +49,7 @@ export const world = {
   },
   
   isBlocked: (x: number, y: number): boolean => {
-    if (x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_SIZE) return true;
+    if (x < 0 || x >= worldWidth || y < 0 || y >= worldHeight) return true;
     return collisionManager.isBlocked(x, y);
   },
   
@@ -36,7 +63,7 @@ export const world = {
     worldObjects[objIndex] = {
       ...obj,
       status: 'depleted',
-      ticksUntilRespawn: config.respawnTicks,
+      ticksUntilRespawn: config?.respawnTicks ?? 10,
     };
     
     collisionManager.setBlocked(x, y, false);
@@ -61,17 +88,7 @@ export const world = {
     return changed;
   },
   
-  reset: () => {
-    worldObjects = JSON.parse(JSON.stringify(INITIAL_WORLD_OBJECTS));
-    for (let y = 0; y < WORLD_SIZE; y++) {
-      for (let x = 0; x < WORLD_SIZE; x++) {
-        collisionManager.setBlocked(x, y, false);
-      }
-    }
-    for (const obj of worldObjects) {
-      if (obj.status === 'active') {
-        collisionManager.setBlocked(obj.position.x, obj.position.y, true);
-      }
-    }
+  reload: async () => {
+    await initializeWorld();
   },
 };

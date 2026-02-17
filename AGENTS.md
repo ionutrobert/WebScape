@@ -43,14 +43,19 @@ C:\Work\Projects\WebScape\
 │       │   └── uiStore.ts       # UI state (tabs, etc)
 │       └── lib/                 # Client utilities
 │           ├── clientDb.ts      # IndexedDB for settings
-│           └── facing.ts        # Facing direction utilities
+│           ├── facing.ts        # Facing direction utilities
+│           ├── usePositionInterpolation.ts  # Movement interpolation hook
+│           ├── visualPositionRef.ts         # Shared visual position for camera
+│           └── animations/      # Animation utilities (tick-synced)
+│               ├── index.ts     # Exports
+│               └── walk.ts      # Walk animation calculations
 │
 ├── server/                       # Server-side (standalone, port 3001)
 │   ├── index.ts                  # Entry point, Socket.IO setup
 │   ├── tick.ts                   # 600ms tick loop
 │   ├── config.ts                 # Server config (WORLD_SIZE, etc)
 │   ├── types.ts                  # Server interfaces
-│   ├── database.ts               # Prisma SQLite client
+│   ├── database.ts               # Prisma SQLite client with better-sqlite3 adapter
 │   ├── world.ts                  # World state management
 │   ├── collision.ts              # CollisionManager (grid-based)
 │   ├── pathfinder.ts             # A* pathfinding algorithm
@@ -58,7 +63,30 @@ C:\Work\Projects\WebScape\
 │   ├── players.ts                # Player session management
 │   └── actions/
 │       ├── movement.ts            # Movement logic (path-based)
-│       └── harvest.ts             # Harvesting logic
+│       └── harvest.ts            # Harvesting logic
+│
+├── map-editor/                    # Map Editor (separate Next.js app, port 3002)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── api/world/       # World data API
+│   │   │   ├── page.tsx         # Editor entry point
+│   │   │   ├── layout.tsx
+│   │   │   └── globals.css
+│   │   ├── components/
+│   │   │   ├── EditorScene.tsx  # Three.js editor scene
+│   │   │   ├── EditorWorld.tsx  # World rendering
+│   │   │   ├── EditorCursor.tsx # Cursor/tile selection
+│   │   │   └── EditorUI.tsx      # Editor toolbar
+│   │   ├── stores/
+│   │   │   └── editorStore.ts    # Editor state
+│   │   ├── lib/
+│   │   │   └── editorDb.ts      # World DB operations
+│   │   └── types/
+│   │       ├── editor.ts         # Editor types
+│   │       └── objects.ts        # Object types
+│   ├── prisma/
+│   │   └── schema.prisma         # Prisma schema (references main db)
+│   └── package.json
 │
 ├── prisma/
 │   └── server.schema.prisma       # Database schema
@@ -70,7 +98,7 @@ C:\Work\Projects\WebScape\
 │
 ├── SPEC.md                       # Game specifications
 ├── SYSTEM_DESIGN.md              # Architecture blueprint
-└── AGENTS.md                     # This file
+└── AGENTS.md                    # This file
 ```
 
 ## Key Architecture Decisions
@@ -80,26 +108,52 @@ C:\Work\Projects\WebScape\
 3. **Socket.IO multiplayer**: Real-time communication
 4. **Three.js 3D rendering**: 3D browser game
 5. **Client/Server separation**: Can run independently
+6. **Shared database**: Map editor and game share the same SQLite database via Prisma
 
 ## Running the Project
 
 ```bash
-# Terminal 1: Start server (port 3001)
+# Terminal 1: Start game server (port 3001)
 npm run server
 # or: npx tsx server/index.ts
 
-# Terminal 2: Start client (port 3000)
+# Terminal 2: Start main game client (port 3000)
 npm run dev
+
+# Terminal 3: Start map editor (port 3002) - optional
+npm run editor
 ```
+
+## Dependencies (Latest - February 2026)
+
+```json
+{
+  "next": "^16.1.6",
+  "react": "^19.2.4",
+  "prisma": "^7.4.0",
+  "@prisma/client": "^7.4.0",
+  "@prisma/adapter-better-sqlite3": "^7.4.0",
+  "@react-three/fiber": "^9.5.0",
+  "@react-three/drei": "^10.0.0",
+  "three": "^0.172.0",
+  "zustand": "^5.0.11",
+  "socket.io": "^4.8.3",
+  "better-sqlite3": "^12.6.2"
+}
+```
+
+**Note:** Node.js 22+ required (use `@prisma/adapter-better-sqlite3` for Prisma 7)
 
 ## Databases
 
-- **Server** (`server/database.ts`): SQLite via Prisma (`prisma/server.db`)
-  - Persists: Player position, inventory, skills, equipment
+- **Server** (`server/database.ts`): SQLite via Prisma with better-sqlite3 adapter (`prisma/server.db`)
+  - Persists: Player position, inventory, skills, equipment, world tiles, world objects
   - Load on join, save on disconnect
   
 - **Client** (`src/client/lib/clientDb.ts`): IndexedDB
   - Per-account settings: Camera angle, zoom level, UI preferences
+
+- **Map Editor**: Shares same database as game server via Prisma
 
 ## Game Config
 
@@ -126,6 +180,7 @@ All game configuration is in `src/data/`:
 - ✅ 8-directional facing
 - ✅ Walking animation
 - ✅ OSRS-style movement interpolation
+- ✅ Map Editor (separate app)
 
 ## Player System
 
@@ -133,20 +188,27 @@ All game configuration is in `src/data/`:
 - 3D humanoid model with body, head, arms, legs, feet
 - Equipment support (helm, chest, legs, mainHand)
 - 8-directional rotation based on facing
-- Walking animation (leg swing, arm swing, bobbing)
-- Position: `y = 0` (ground level)
+- Walking animation synced to movement progress (tick-based)
+- Position: `y = 0` (ground level, no floating)
 
 ### Movement System (OSRS-style)
 
 **Server sends precise movement data:**
-- `position-update`: `{ x, y, startX, startY, facing }`
+- `position-update`: `{ x, y, startX, startY, facing, tickStartTime }`
 - `startX/startY`: Where movement started from
 - `x/y`: Where movement ends
+- `tickStartTime`: Unix timestamp when server tick began (critical for sync)
 
 **Client interpolation:**
 - `usePositionInterpolation` hook handles smooth movement
+- Returns `movementProgress` (0.0 to 1.0) for animation sync
 - Linear interpolation from start → end over exactly 600ms
 - Same approach as OSRS ExactMove system
+
+**Animation Synchronization:**
+- Walk animation completes one full cycle per tile
+- Uses `movementProgress` to calculate walk phase: `phase = progress * π * 2`
+- See `SYSTEM_DESIGN.md` Section 8 for full animation system documentation
 
 **Player Components**
 - `LocalPlayer` - Renders the local player with equipment from store
@@ -200,10 +262,10 @@ Flexbox layout:
 **Server → Client:**
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `init` | `{ playerId, worldObjects, ... }` | Initial state |
+| `init` | `{ playerId, worldObjects, tickStartTime, tickDuration, ... }` | Initial state |
 | `world-update` | `WorldObject[]` | Resource states |
-| `players-update` | `{ id, username, x, y, startX, startY, facing }[]` | All players |
-| `position-update` | `{ x, y, startX, startY, facing }` | Own position (for interpolation) |
+| `players-update` | `{ players, tickStartTime }` | All players with sync timing |
+| `position-update` | `{ x, y, startX, startY, facing, tickStartTime }` | Own position (for interpolation) |
 | `inventory-update` | `Record<string, number>` | Inventory |
 | `chat` | `{ username, message, type }` | Chat message |
 
@@ -214,3 +276,4 @@ Flexbox layout:
 - Components small and focused
 - No game logic in client
 - No `any` unless absolutely necessary
+- ESM modules (package.json has `"type": "module"`)

@@ -12,22 +12,35 @@ export interface ItemDefinition {
   icon?: string;
 }
 
-export type WorldObjectType = 'resource' | 'static';
+export type TileType = 'grass' | 'dirt' | 'water' | 'sand' | 'stone' | 'snow' | 'cave' | 'dungeon';
+
+export const TILE_COLORS: Record<TileType, number> = {
+  grass: 0x4a7c23,
+  dirt: 0x8b6914,
+  water: 0x2d5aa0,
+  sand: 0xd4b896,
+  stone: 0x6b6b6b,
+  snow: 0xe8e8e8,
+  cave: 0x3d2817,
+  dungeon: 0x2a2a2a,
+};
+
+export type WorldObjectType = 'resource' | 'static' | 'decoration';
 
 export interface ObjectDefinition {
   id: string;
   name: string;
   type: WorldObjectType;
-  interactionDistance: number;
-  levelReq: number;
-  xpGranted: number;
-  toolRequired: ToolType;
-  resourceGiven: string;
-  resourceQty: number;
-  depletionTicks: number;
-  respawnTicks: number;
+  interactionDistance?: number;
+  levelReq?: number;
+  xpGranted?: number;
+  toolRequired?: ToolType;
+  resourceGiven?: string;
+  resourceQty?: number;
+  depletionTicks?: number;
+  respawnTicks?: number;
   activeModel: string;
-  depletedModel: string;
+  depletedModel?: string;
 }
 
 export type ObjectStatus = 'active' | 'depleted';
@@ -38,6 +51,18 @@ export interface WorldObjectState {
   status: ObjectStatus;
   ticksUntilRespawn: number;
   harvestProgress: number;
+}
+
+export interface TileData {
+  x: number;
+  y: number;
+  tileType: TileType;
+  height: number;
+}
+
+export interface WorldConfig {
+  width: number;
+  height: number;
 }
 
 export type SkillKey = 'attack' | 'strength' | 'defense' | 'mining' | 'woodcutting';
