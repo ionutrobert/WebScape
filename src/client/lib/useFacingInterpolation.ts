@@ -1,80 +1,59 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { getRotationForFacing, getRotationDifference } from './facing';
+import { getRotationForFacing } from './facing';
 
-const TICK_DURATION_MS = 600;
+const ROTATION_DURATION_MS = 50;
 
 export function useFacingInterpolation(
   targetFacing: string,
   enabled: boolean = true
 ): number {
-  const [rotation, setRotation] = useState(getRotationForFacing(targetFacing));
-  const startRotation = useRef(getRotationForFacing(targetFacing));
-  const targetRotation = useRef(getRotationForFacing(targetFacing));
-  const startTime = useRef(0);
-  const isAnimating = useRef(false);
+  const rotationRef = useRef(getRotationForFacing(targetFacing));
+  const startRotationRef = useRef(getRotationForFacing(targetFacing));
+  const targetRotationRef = useRef(getRotationForFacing(targetFacing));
+  const startTimeRef = useRef(0);
+  const isRotatingRef = useRef(false);
+  const targetFacingRef = useRef(targetFacing);
 
   useEffect(() => {
-    if (targetFacing !== getFacingFromRotation(targetRotation.current)) {
-      startRotation.current = rotation;
-      targetRotation.current = getRotationForFacing(targetFacing);
-      startTime.current = performance.now();
-      isAnimating.current = true;
+    if (targetFacing !== targetFacingRef.current) {
+      startRotationRef.current = rotationRef.current;
+      targetRotationRef.current = getRotationForFacing(targetFacing);
+      targetFacingRef.current = targetFacing;
+      startTimeRef.current = performance.now();
+      isRotatingRef.current = true;
     }
-  }, [targetFacing, rotation]);
+  }, [targetFacing]);
 
   useFrame(() => {
-    if (!enabled || !isAnimating.current) {
-      setRotation(getRotationForFacing(targetFacing));
+    if (!enabled) {
+      return;
+    }
+
+    if (!isRotatingRef.current) {
       return;
     }
 
     const now = performance.now();
-    const elapsed = now - startTime.current;
-    let t = elapsed / TICK_DURATION_MS;
+    const elapsed = now - startTimeRef.current;
+    let t = elapsed / ROTATION_DURATION_MS;
     
     if (t >= 1) {
       t = 1;
-      isAnimating.current = false;
-      setRotation(targetRotation.current);
+      isRotatingRef.current = false;
+      rotationRef.current = targetRotationRef.current;
     } else {
-      const smoothT = smoothstep(t);
-      const newRotation = startRotation.current + (targetRotation.current - startRotation.current) * smoothT;
-      setRotation(newRotation);
+      const smoothT = easeInOutQuad(t);
+      rotationRef.current = startRotationRef.current + 
+        (targetRotationRef.current - startRotationRef.current) * smoothT;
     }
   });
 
-  return rotation;
+  return rotationRef.current;
 }
 
-function smoothstep(t: number): number {
-  return t * t * (3 - 2 * t);
-}
-
-function getFacingFromRotation(rot: number): string {
-  const directions = [
-    { facing: 'south', rot: 0 },
-    { facing: 'southeast', rot: Math.PI / 4 },
-    { facing: 'east', rot: Math.PI / 2 },
-    { facing: 'northeast', rot: Math.PI * 3/4 },
-    { facing: 'north', rot: Math.PI },
-    { facing: 'northwest', rot: -Math.PI * 3/4 },
-    { facing: 'west', rot: -Math.PI / 2 },
-    { facing: 'southwest', rot: -Math.PI / 4 },
-  ];
-  
-  let closest = directions[0];
-  let minDiff = Infinity;
-  
-  for (const dir of directions) {
-    const diff = getRotationDifference(rot, dir.rot);
-    if (Math.abs(diff) < minDiff) {
-      minDiff = Math.abs(diff);
-      closest = dir;
-    }
-  }
-  
-  return closest.facing;
+function easeInOutQuad(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }

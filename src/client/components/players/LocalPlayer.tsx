@@ -7,15 +7,13 @@ import { visualPositionRef } from '@/client/lib/visualPositionRef';
 import { useEffect } from 'react';
 
 export function LocalPlayer() {
-  const { position, facing, equipment, isMoving } = useGameStore();
+  const { position, facing, equipment } = useGameStore();
   
-  const visualPos = usePositionInterpolation(position.x, position.y, isMoving);
+  const { x, y, isMoving } = usePositionInterpolation(position.x, position.y, true);
   
   useEffect(() => {
-    if (visualPos) {
-      visualPositionRef.x = visualPos.x;
-      visualPositionRef.y = visualPos.y;
-    }
+    visualPositionRef.x = x;
+    visualPositionRef.y = y;
   });
   
   const appearance: PlayerAppearance = {
@@ -28,8 +26,8 @@ export function LocalPlayer() {
   
   return (
     <PlayerModel
-      x={visualPos?.x ?? position.x}
-      y={visualPos?.y ?? position.y}
+      x={x}
+      y={y}
       facing={facing}
       appearance={appearance}
       isMoving={isMoving}

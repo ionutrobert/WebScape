@@ -64,7 +64,7 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isLocalPlayer 
     groupRef.current.rotation.y = rotation;
     
     if (isMoving) {
-      bobOffset.current += delta * 12;
+      bobOffset.current += delta * 10.5;
       const bob = Math.sin(bobOffset.current) * 0.05;
       
       if (legLeftGroupRef.current && legRightGroupRef.current) {
