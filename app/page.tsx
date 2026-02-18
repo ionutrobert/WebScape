@@ -25,7 +25,7 @@ export default function GamePage() {
   const { 
     xp, inventory, chatLog, isLoaded, players,
     setUsername: setStoreUsername, addChatMessage,
-    setWorldObjects, setPosition, setInventory, setLoaded,
+    setWorldObjects, setWorldSize, setPosition, setInventory, setLoaded,
     setPlayerId, setPlayers, playerId, loadClientSettings,
     setTargetDestination, camera, cameraRestored
   } = useGameStore();
@@ -60,6 +60,7 @@ export default function GamePage() {
       setStoreUsername(username);
       setPlayerId(data.playerId);
       setWorldObjects(data.worldObjects);
+      setWorldSize(data.worldWidth, data.worldHeight);
       
       const me = data.players?.find((p) => p.id === data.playerId);
       setPosition(me ? { x: me.x, y: me.y } : { x: 10, y: 10 });

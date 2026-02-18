@@ -162,10 +162,11 @@ interface GameSceneProps {
 }
 
 export function GameScene({ onMove, onHarvest, players }: GameSceneProps) {
-  const { position, worldObjects } = useGameStore();
+  const { position, worldObjects, worldWidth, worldHeight } = useGameStore();
 
   return (
     <Canvas camera={{ position: [20, 18, 20], fov: 50 }} style={{ background: '#1a1a2e' }}>
+      <fog attach="fog" args={['#1a1a2e', 15, 25]} />
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
       
@@ -173,6 +174,8 @@ export function GameScene({ onMove, onHarvest, players }: GameSceneProps) {
         <World 
           worldObjects={worldObjects}
           otherPlayers={Object.values(players)}
+          worldWidth={worldWidth}
+          worldHeight={worldHeight}
           onMove={onMove}
           onHarvest={onHarvest}
         />

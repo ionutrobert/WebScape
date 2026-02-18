@@ -125,4 +125,6 @@ export interface InitData {
   worldObjects: WorldObjectState[];
   tickStartTime: number;
   tickDuration: number;
+  worldWidth: number;
+  worldHeight: number;
 }

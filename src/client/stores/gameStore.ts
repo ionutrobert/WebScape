@@ -41,6 +41,8 @@ interface GameState {
   uiTab: 'inventory' | 'skills' | 'equipment';
   tickStartTime: number;
   tickDuration: number;
+  worldWidth: number;
+  worldHeight: number;
 
   setUsername: (name: string) => void;
   setPlayerId: (id: string) => void;
@@ -51,6 +53,7 @@ interface GameState {
   setTargetDestination: (target: Position | null) => void;
   setFacing: (facing: FacingDirection) => void;
   setWorldObjects: (objects: WorldObjectState[]) => void;
+  setWorldSize: (width: number, height: number) => void;
   setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => void;
   setCamera: (camera: Partial<CameraState>) => void;
   setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => void;
@@ -106,12 +109,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   uiTab: 'inventory',
   tickStartTime: 0,
   tickDuration: 600,
+  worldWidth: 100,
+  worldHeight: 100,
 
   setUsername: (name) => set({ username: name }),
   setPlayerId: (id) => set({ playerId: id }),
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
+  setWorldSize: (width, height) => set({ worldWidth: width, worldHeight: height }),
   setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)

@@ -34,6 +34,8 @@ io.on('connection', (socket) => {
       worldObjects: world.getAll(),
       tickStartTime: getLastTickStartTime(),
       tickDuration: getTickDuration(),
+      worldWidth: world.getWidth(),
+      worldHeight: world.getHeight(),
     });
     
     socket.broadcast.emit('player-joined', { id: socket.id, username });
