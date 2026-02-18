@@ -62,6 +62,8 @@ export const world = {
   
   getCollisionManager: (): CollisionManager => collisionManager,
   
+  getCollisionMap: (): boolean[][] => collisionManager.getBlockedMap(),
+  
   getAt: (x: number, y: number): WorldObject | undefined => {
     return worldObjects.find(o => o.position.x === x && o.position.y === y);
   },

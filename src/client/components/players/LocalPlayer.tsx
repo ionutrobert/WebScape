@@ -7,7 +7,6 @@ import { visualPositionRef } from '@/client/lib/visualPositionRef';
 import { useEffect, useMemo } from 'react';
 
 export function LocalPlayer() {
-  // Use selectors like RemotePlayer to avoid stale closures
   const position = useGameStore((s) => s.position);
   const startPosition = useGameStore((s) => s.startPosition);
   const facing = useGameStore((s) => s.facing);
@@ -15,6 +14,7 @@ export function LocalPlayer() {
   const tickStartTime = useGameStore((s) => s.tickStartTime);
   const tickDuration = useGameStore((s) => s.tickDuration);
   const debugSettings = useGameStore((s) => s.debugSettings);
+  const isRunning = useGameStore((s) => s.isRunning);
   
   const { x, y, isMoving, movementProgress } = usePositionInterpolation(
     position.x, 
@@ -47,6 +47,7 @@ export function LocalPlayer() {
         facing={facing}
         appearance={appearance}
         isMoving={isMoving}
+        isRunning={isRunning}
         movementProgress={movementProgress}
         isLocalPlayer={true}
       />

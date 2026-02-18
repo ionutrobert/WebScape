@@ -20,6 +20,8 @@ export interface Player {
   hp?: number;
   maxHp?: number;
   godMode?: boolean;
+  runEnergy: number;
+  isRunning: boolean;
 }
 
 export interface WorldObject {

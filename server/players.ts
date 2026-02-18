@@ -33,6 +33,8 @@ export const playerManager = {
         mining: 1,
         woodcutting: 1,
       },
+      runEnergy: 100,
+      isRunning: false,
     };
     players.set(id, player);
     return player;
@@ -117,6 +119,47 @@ export const playerManager = {
   getSkills: (id: string): Record<string, number> => {
     const player = players.get(id);
     return player?.skills || {};
+  },
+
+  toggleRun: (id: string): boolean => {
+    const player = players.get(id);
+    if (!player) return false;
+    player.isRunning = !player.isRunning;
+    return player.isRunning;
+  },
+
+  setRunning: (id: string, running: boolean): void => {
+    const player = players.get(id);
+    if (player) {
+      player.isRunning = running;
+    }
+  },
+
+  depleteRunEnergy: (id: string, amount: number): void => {
+    const player = players.get(id);
+    if (player) {
+      player.runEnergy = Math.max(0, player.runEnergy - amount);
+      if (player.runEnergy <= 0) {
+        player.isRunning = false;
+      }
+    }
+  },
+
+  restoreRunEnergy: (id: string, amount: number): void => {
+    const player = players.get(id);
+    if (player) {
+      player.runEnergy = Math.min(100, player.runEnergy + amount);
+    }
+  },
+
+  getRunEnergy: (id: string): number => {
+    const player = players.get(id);
+    return player?.runEnergy ?? 100;
+  },
+
+  isRunning: (id: string): boolean => {
+    const player = players.get(id);
+    return player?.isRunning ?? false;
   },
 
   isAdmin: (username: string): boolean => {

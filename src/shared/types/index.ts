@@ -118,6 +118,8 @@ export interface ServerPlayer {
   x: number;
   y: number;
   facing: string;
+  isRunning?: boolean;
+  runEnergy?: number;
 }
 
 export interface PositionUpdate {
@@ -127,11 +129,18 @@ export interface PositionUpdate {
   startY: number;
   facing: string;
   tickStartTime: number;
+  isRunning?: boolean;
+  runEnergy?: number;
 }
 
 export interface PlayersUpdate {
   players: ServerPlayer[];
   tickStartTime: number;
+}
+
+export interface RunStateUpdate {
+  isRunning: boolean;
+  runEnergy: number;
 }
 
 export interface InitData {

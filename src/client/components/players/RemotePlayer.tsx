@@ -12,6 +12,7 @@ interface RemotePlayerData {
   startX?: number;
   startY?: number;
   facing: string;
+  isRunning?: boolean;
 }
 
 interface RemotePlayerProps {
@@ -46,6 +47,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
       facing={player.facing as any}
       appearance={appearance}
       isMoving={isMoving}
+      isRunning={player.isRunning}
       movementProgress={movementProgress}
       isLocalPlayer={false}
     />

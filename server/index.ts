@@ -79,6 +79,7 @@ io.on("connection", (socket) => {
       players: playerManager.getAll(),
       worldObjects: world.getAll(),
       worldTiles: world.getTiles(),
+      collisionMap: world.getCollisionMap(),
       tickStartTime: getLastTickStartTime(),
       tickDuration: getTickDuration(),
       worldWidth: world.getWidth(),
@@ -91,6 +92,8 @@ io.on("connection", (socket) => {
       players: playerManager.getAll(),
       tickStartTime: getLastTickStartTime(),
     });
+    
+    socket.emit("collision-update", world.getCollisionMap());
 
     console.log(`${username} joined at (${spawnPos.x}, ${spawnPos.y})`);
   });
@@ -140,6 +143,16 @@ io.on("connection", (socket) => {
     const player = playerManager.get(socket.id);
     if (!player) return;
     io.emit("chat", { username: player.username, message, type: "player" });
+  });
+
+  socket.on("toggle-run", () => {
+    const player = playerManager.get(socket.id);
+    if (!player) return;
+    const newRunningState = playerManager.toggleRun(socket.id);
+    socket.emit("run-state-update", { 
+      isRunning: newRunningState, 
+      runEnergy: player.runEnergy 
+    });
   });
 
   socket.on("disconnect", async () => {

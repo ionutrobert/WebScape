@@ -112,18 +112,20 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isRunning, mov
       const bobAmount = isRunning ? 0.08 : 0.05;
       const bob = Math.abs(Math.sin(walkPhase)) * bobAmount;
       groupRef.current.position.y = 0.5 + bob;
+      
+      if (bodyGroupRef.current) bodyGroupRef.current.position.y = 0;
     } else {
       anim.prevMovementProgress = 0;
       anim.walkPhase = 0;
       anim.breathePhase += delta * 2;
       
-      const breathe = Math.sin(anim.breathePhase) * 0.02;
+      const breathe = Math.sin(anim.breathePhase);
       
       if (legLeftGroupRef.current) legLeftGroupRef.current.rotation.x = 0;
       if (legRightGroupRef.current) legRightGroupRef.current.rotation.x = 0;
-      if (armLeftGroupRef.current) armLeftGroupRef.current.rotation.x = breathe;
-      if (armRightGroupRef.current) armRightGroupRef.current.rotation.x = breathe;
-      if (bodyGroupRef.current) bodyGroupRef.current.position.y = breathe * 2;
+      if (armLeftGroupRef.current) armLeftGroupRef.current.rotation.x = breathe * 0.02;
+      if (armRightGroupRef.current) armRightGroupRef.current.rotation.x = breathe * 0.02;
+      if (bodyGroupRef.current) bodyGroupRef.current.position.y = breathe * 0.02;
       
       groupRef.current.position.y = 0.5;
     }

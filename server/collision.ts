@@ -87,4 +87,8 @@ export class CollisionManager {
   getHeight(): number {
     return this.height;
   }
+
+  getBlockedMap(): boolean[][] {
+    return this.blocked.map(row => [...row]);
+  }
 }

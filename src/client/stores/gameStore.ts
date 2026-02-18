@@ -46,9 +46,10 @@ interface GameState {
   currentAction: PlayerAction | null;
   worldObjects: WorldObjectState[];
   worldTiles: { x: number; y: number; tileType: string; height: number }[];
+  collisionMap: boolean[][];
   chatLog: string[];
   isLoaded: boolean;
-  players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>;
+  players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>;
   camera: CameraState;
   cameraRestored: boolean;
   uiTab: 'inventory' | 'skills' | 'equipment';
@@ -56,6 +57,8 @@ interface GameState {
   tickDuration: number;
   worldWidth: number;
   worldHeight: number;
+  runEnergy: number;
+  isRunning: boolean;
 
   setUsername: (name: string) => void;
   setPlayerId: (id: string) => void;
@@ -69,12 +72,15 @@ interface GameState {
   setWorldObjects: (objects: WorldObjectState[]) => void;
   setWorldSize: (width: number, height: number) => void;
   setWorldTiles: (tiles: { x: number; y: number; tileType: string; height: number }[]) => void;
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => void;
+  setCollisionMap: (map: boolean[][]) => void;
+  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>, tickStartTime?: number) => void;
   setCamera: (camera: Partial<CameraState>) => void;
   setDebugSettings: (settings: Partial<GameState['debugSettings']>) => void;
   setPerformanceSettings: (settings: Partial<GameState['performanceSettings']>) => void;
   setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => void;
   loadClientSettings: () => Promise<void>;
+  setRunState: (isRunning: boolean, runEnergy: number) => void;
+  toggleRun: () => void;
 
   addXp: (skill: SkillKey, amount: number) => number;
   addToInventory: (itemId: string, qty: number) => boolean;
@@ -131,6 +137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentAction: null,
   worldObjects: INITIAL_WORLD_OBJECTS,
   worldTiles: [],
+  collisionMap: [],
   chatLog: [`Welcome to ${GAME_NAME}! Click a resource to harvest.`],
   isLoaded: false,
   players: {},
@@ -141,6 +148,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   tickDuration: 600,
   worldWidth: 100,
   worldHeight: 100,
+  runEnergy: 100,
+  isRunning: false,
 
   setUsername: (name) => set({ username: name }),
   setPlayerId: (id) => set({ playerId: id }),
@@ -150,6 +159,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setEquipment: (eq) => set({ equipment: eq }),
   setWorldSize: (width, height) => set({ worldWidth: width, worldHeight: height }),
   setWorldTiles: (tiles) => set({ worldTiles: tiles }),
+  setCollisionMap: (map) => set({ collisionMap: map }),
   setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
@@ -170,7 +180,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setFacing: (facing) => set({ facing }),
   setIsMoving: (moving: boolean) => set({ isMoving: moving }),
   setWorldObjects: (objects) => set({ worldObjects: objects }),
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => set(() => ({ 
+  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>, tickStartTime?: number) => set(() => ({ 
     players
   })),
   
@@ -234,6 +244,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       cameraRestored: true,
     });
   },
+
+  setRunState: (isRunning, runEnergy) => set({ isRunning, runEnergy }),
+  
+  toggleRun: () => set((state) => {
+    if (state.runEnergy <= 0) {
+      return { isRunning: false };
+    }
+    return { isRunning: !state.isRunning };
+  }),
 
   addXp: (skill, amount) => {
     const currentXp = get().xp[skill];

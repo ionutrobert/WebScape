@@ -151,7 +151,7 @@ function Tree({ x, y, isDepleted, treeType, opacity, onClick }: { x: number; y: 
 }
 
 export function World({ worldObjects, worldTiles, otherPlayers, worldWidth, worldHeight, onMove, onHarvest }: WorldProps) {
-  const { position, performanceSettings } = useGameStore();
+  const { position, performanceSettings, debugSettings, collisionMap } = useGameStore();
   const viewDistance = performanceSettings.viewDistance;
   
   const objectMap = useMemo(() => {
@@ -221,6 +221,29 @@ export function World({ worldObjects, worldTiles, otherPlayers, worldWidth, worl
     return result;
   }, [worldObjects, position.x, position.y, viewDistance]);
 
+  const collisionTilesToRender = useMemo(() => {
+    if (!debugSettings.showCollisionMap || collisionMap.length === 0) return [];
+    
+    const result: { x: number; y: number; isBlocked: boolean }[] = [];
+    
+    const minX = Math.max(0, Math.floor(position.x - viewDistance));
+    const maxX = Math.min(worldWidth - 1, Math.ceil(position.x + viewDistance));
+    const minY = Math.max(0, Math.floor(position.y - viewDistance));
+    const maxY = Math.min(worldHeight - 1, Math.ceil(position.y + viewDistance));
+    
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const dist = Math.sqrt(Math.pow(position.x - x, 2) + Math.pow(position.y - y, 2));
+        if (dist <= viewDistance) {
+          const isBlocked = collisionMap[y]?.[x] ?? false;
+          result.push({ x, y, isBlocked });
+        }
+      }
+    }
+    
+    return result;
+  }, [debugSettings.showCollisionMap, collisionMap, position.x, position.y, worldWidth, worldHeight, viewDistance]);
+
   const handleTileClick = useCallback((x: number, y: number) => {
     const dist = Math.abs(position.x - x) + Math.abs(position.y - y);
     if (dist > 0) {
@@ -277,6 +300,22 @@ export function World({ worldObjects, worldTiles, otherPlayers, worldWidth, worl
           </Tile>
         );
       })}
+      
+      {collisionTilesToRender.map(({ x, y, isBlocked }) => (
+        <mesh
+          key={`collision-${x}-${y}`}
+          position={[x, 0.11, y]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[0.95, 0.95]} />
+          <meshBasicMaterial 
+            color={isBlocked ? 0xff0000 : 0x00ff00}
+            transparent
+            opacity={0.3}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
       
       <LocalPlayer />
       {(otherPlayers || []).map(player => (

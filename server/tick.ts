@@ -36,16 +36,24 @@ export function tick() {
   const worldChanged = world.tick();
   
   for (const player of playerManager.getAll()) {
-    const result = processMovement(player.id);
+    const isRunning = playerManager.isRunning(player.id);
+    const result = processMovement(player.id, isRunning);
     if (result?.moved) {
+      if (isRunning) {
+        playerManager.depleteRunEnergy(player.id, 1);
+      }
       io.to(player.id).emit('position-update', { 
         x: result.newX, 
         y: result.newY, 
         startX: result.prevX,
         startY: result.prevY,
         facing: player.facing,
-        tickStartTime
+        tickStartTime,
+        isRunning,
+        runEnergy: playerManager.getRunEnergy(player.id)
       });
+    } else if (!playerManager.hasTarget(player.id)) {
+      playerManager.restoreRunEnergy(player.id, 0.5);
     }
   }
   
@@ -64,7 +72,9 @@ function broadcastPlayers() {
     y: p.y,
     startX: p.prevX ?? p.x,
     startY: p.prevY ?? p.y,
-    facing: p.facing
+    facing: p.facing,
+    isRunning: p.isRunning,
+    runEnergy: p.runEnergy
   }));
   io.emit('players-update', { players, tickStartTime: lastTickStartTime });
 }

@@ -60,11 +60,11 @@ export default function GamePage() {
   const { 
     xp, inventory, chatLog, isLoaded, players,
     setUsername: setStoreUsername, addChatMessage,
-    setWorldObjects, setWorldSize, setWorldTiles, setPosition, setInventory, setLoaded,
+    setWorldObjects, setWorldSize, setWorldTiles, setCollisionMap, setPosition, setInventory, setLoaded,
     setPlayerId, setPlayers, playerId, loadClientSettings, setIsAdmin,
     setTargetDestination, camera, cameraRestored,
     debugSettings, setDebugSettings, performanceSettings, setPerformanceSettings,
-    position
+    position, runEnergy, isRunning, setRunState, toggleRun
   } = useGameStore();
 
   // Update tick progress every 50ms
@@ -107,13 +107,16 @@ export default function GamePage() {
       newSocket.emit('join', username);
     });
 
-    newSocket.on('init', async (data: InitData) => {
+    newSocket.on('init', async (data: InitData & { collisionMap?: boolean[][] }) => {
       myPlayerId = data.playerId;
       setStoreUsername(username);
       setPlayerId(data.playerId);
       setWorldObjects(data.worldObjects);
       setWorldSize(data.worldWidth, data.worldHeight);
       setWorldTiles(data.worldTiles || []);
+      if (data.collisionMap) {
+        setCollisionMap(data.collisionMap);
+      }
       setIsAdmin(data.isAdmin || false);
       
       const me = data.players?.find((p) => p.id === data.playerId);
@@ -147,10 +150,17 @@ export default function GamePage() {
     });
 
     newSocket.on('players-update', (data: PlayersUpdate) => {
-      const playersMap: Record<string, { id: string; username: string; x: number; y: number; facing: string }> = {};
+      const playersMap: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }> = {};
       data.players.forEach(p => {
         if (p.id !== myPlayerId) {
-          playersMap[p.id] = p;
+          playersMap[p.id] = {
+            id: p.id,
+            username: p.username,
+            x: p.x,
+            y: p.y,
+            facing: p.facing,
+            isRunning: p.isRunning
+          };
         }
       });
       setPlayers(playersMap, data.tickStartTime);
@@ -168,6 +178,13 @@ export default function GamePage() {
       if (pos.facing) {
         useGameStore.getState().setFacing(pos.facing as any);
       }
+      if (pos.runEnergy !== undefined) {
+        useGameStore.getState().setRunState(pos.isRunning ?? false, pos.runEnergy);
+      }
+    });
+
+    newSocket.on('run-state-update', (data: { isRunning: boolean; runEnergy: number }) => {
+      useGameStore.getState().setRunState(data.isRunning, data.runEnergy);
     });
 
     newSocket.on('inventory-update', (inv: Record<string, number>) => {
@@ -188,6 +205,10 @@ export default function GamePage() {
       setConnected(false);
       addChatMessage('Disconnected from server.');
     });
+
+    newSocket.on('collision-update', (map: boolean[][]) => {
+      setCollisionMap(map);
+    });
   };
 
   const handleSendChat = (e: React.FormEvent) => {
@@ -206,6 +227,20 @@ export default function GamePage() {
   const handleHarvest = (x: number, y: number, objectId: string) => {
     socket?.emit('harvest', { x, y, objectId });
   };
+
+  const handleToggleRun = () => {
+    socket?.emit('toggle-run');
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r' && !e.repeat) {
+        handleToggleRun();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [socket]);
 
   if (!mounted) {
     return (
@@ -276,6 +311,43 @@ export default function GamePage() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-amber-500 rounded-full"></div>
           </div>
         </div>
+        
+        <button
+          onClick={handleToggleRun}
+          className={`w-full p-2 border-b border-stone-700 flex items-center gap-2 ${isRunning ? 'bg-green-900/30' : 'bg-stone-800'}`}
+        >
+          <div className="relative w-8 h-8">
+            <svg viewBox="0 0 32 32" className="w-full h-full">
+              <circle
+                cx="16"
+                cy="16"
+                r="14"
+                fill="none"
+                stroke="#44403c"
+                strokeWidth="3"
+              />
+              <circle
+                cx="16"
+                cy="16"
+                r="14"
+                fill="none"
+                stroke={runEnergy > 0 ? '#22c55e' : '#78716c'}
+                strokeWidth="3"
+                strokeDasharray={`${(runEnergy / 100) * 87.96} 87.96`}
+                transform="rotate(-90 16 16)"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-stone-300">
+              {Math.round(runEnergy)}
+            </span>
+          </div>
+          <div className="flex-1 text-left">
+            <div className={`text-sm font-bold ${isRunning ? 'text-green-400' : 'text-stone-400'}`}>
+              {isRunning ? 'Running' : 'Walking'}
+            </div>
+            <div className="text-xs text-stone-500">Press R to toggle</div>
+          </div>
+        </button>
         
         <div className="flex border-b border-stone-700">
           <button
