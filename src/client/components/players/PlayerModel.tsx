@@ -135,7 +135,7 @@ export function PlayerModel({
 
       const bobAmount = isRunning ? 0.08 : 0.05;
       const bob = Math.abs(Math.sin(walkPhase)) * bobAmount;
-      groupRef.current.position.y = 0.5 + bob;
+      groupRef.current.position.y = 0.25 + bob;
 
       if (bodyGroupRef.current) bodyGroupRef.current.position.y = 0;
     } else {
@@ -166,7 +166,7 @@ export function PlayerModel({
       if (bodyGroupRef.current)
         bodyGroupRef.current.position.y = breathe * 0.02;
 
-      groupRef.current.position.y = 0.5;
+      groupRef.current.position.y = 0.25;
     }
   });
 
@@ -182,7 +182,7 @@ export function PlayerModel({
     : null;
 
   return (
-    <group ref={groupRef} position={[x, 0.5, y]}>
+    <group ref={groupRef} position={[x, 0.25, y]}>
       {/* Body group for breathing animation */}
       <group ref={bodyGroupRef}>
         {/* Body - torso */}
