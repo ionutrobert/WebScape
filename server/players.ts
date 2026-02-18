@@ -1,5 +1,15 @@
 import { Player } from './types';
 import { calculateFacing } from './facing';
+import { world } from './world';
+import { Server } from 'socket.io';
+
+export type AdminLevel = 'mod' | 'admin' | 'owner';
+
+const ADMIN_USERS: Record<string, AdminLevel> = {
+  'admin': 'owner',
+  'mod': 'mod',
+  'dev': 'admin',
+};
 
 const players = new Map<string, Player>();
 
@@ -107,5 +117,79 @@ export const playerManager = {
   getSkills: (id: string): Record<string, number> => {
     const player = players.get(id);
     return player?.skills || {};
+  },
+
+  isAdmin: (username: string): boolean => {
+    return username.toLowerCase() in ADMIN_USERS;
+  },
+
+  getAdminLevel: (username: string): AdminLevel | null => {
+    return ADMIN_USERS[username.toLowerCase()] || null;
+  },
+
+  handleAdminCommand: async (playerId: string, command: string, args: any, io: Server): Promise<{ valid: boolean; reason?: string }> => {
+    const player = players.get(playerId);
+    if (!player) return { valid: false, reason: 'Player not found' };
+
+    switch (command) {
+      case 'teleport':
+      case 'tp': {
+        if (!args?.x || !args?.y) {
+          return { valid: false, reason: 'Usage: /tp <x> <y>' };
+        }
+        const tx = parseInt(args.x);
+        const ty = parseInt(args.y);
+        if (isNaN(tx) || isNaN(ty)) {
+          return { valid: false, reason: 'Invalid coordinates' };
+        }
+        if (tx < 0 || tx >= world.getWidth() || ty < 0 || ty >= world.getHeight()) {
+          return { valid: false, reason: 'Coordinates out of bounds' };
+        }
+        player.x = tx;
+        player.y = ty;
+        player.prevX = tx;
+        player.prevY = ty;
+        io.emit('players-update', { players: playerManager.getAll(), tickStartTime: Date.now() });
+        return { valid: true };
+      }
+
+      case 'spawn': {
+        if (!args?.objectId || !args?.x || !args?.y) {
+          return { valid: false, reason: 'Usage: /spawn <objectId> <x> <y>' };
+        }
+        return { valid: true, reason: 'Spawn not implemented yet' };
+      }
+
+      case 'give': {
+        if (!args?.itemId || !args?.qty) {
+          return { valid: false, reason: 'Usage: /give <itemId> <quantity>' };
+        }
+        const qty = parseInt(args.qty) || 1;
+        playerManager.addToInventory(playerId, args.itemId, qty);
+        return { valid: true };
+      }
+
+      case 'xp': {
+        if (!args?.skill || !args?.amount) {
+          return { valid: false, reason: 'Usage: /xp <skill> <amount>' };
+        }
+        const amount = parseInt(args.amount) || 0;
+        player.skills[args.skill] = (player.skills[args.skill] || 0) + amount;
+        return { valid: true };
+      }
+
+      case 'heal': {
+        player.hp = player.maxHp || 100;
+        return { valid: true };
+      }
+
+      case 'godmode': {
+        player.godMode = !player.godMode;
+        return { valid: true, reason: `God mode: ${player.godMode ? 'ON' : 'OFF'}` };
+      }
+
+      default:
+        return { valid: false, reason: `Unknown command: ${command}` };
+    }
   },
 };

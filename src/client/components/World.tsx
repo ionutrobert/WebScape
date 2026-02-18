@@ -3,14 +3,21 @@
 import { useGameStore } from '@/client/stores/gameStore';
 import { useRef, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
-import { WorldObjectState } from '@/shared/types';
+import { WorldObjectState, TILE_COLORS, TileType } from '@/shared/types';
 import { OBJECTS } from '@/data/objects';
 import { LocalPlayer, RemotePlayer } from './players';
 
-const CHUNK_SIZE = 32;
-const VIEW_DISTANCE = 14;
+const CHUNK_SIZE = 16;
 const FOG_START = 10;
 const FOG_END = 14;
+
+const TILE_COLORS_MAP: Record<string, number> = {
+  grass: 0x4a7c23,
+  sand: 0xd4b896,
+  stone: 0x6b6b6b,
+  water: 0x2d5aa0,
+  snow: 0xe8e8e8,
+};
 
 interface ServerPlayer {
   id: string;
@@ -22,6 +29,7 @@ interface ServerPlayer {
 
 interface WorldProps {
   worldObjects: WorldObjectState[];
+  worldTiles: { x: number; y: number; tileType: string; height: number }[];
   otherPlayers?: ServerPlayer[];
   worldWidth: number;
   worldHeight: number;
@@ -59,15 +67,18 @@ function getDistanceToChunk(
   );
 }
 
-function Tile({ x, y, isWalkable, opacity, onClick, children }: { 
+function Tile({ x, y, tileType, isWalkable, opacity, onClick, children }: { 
   x: number; 
-  y: number; 
+  y: number;
+  tileType?: string;
   isWalkable: boolean;
   opacity: number;
   onClick: () => void;
   children?: React.ReactNode;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  
+  const color = tileType ? (TILE_COLORS_MAP[tileType] || 0x4a5568) : 0x4a5568;
   
   return (
     <mesh
@@ -87,7 +98,7 @@ function Tile({ x, y, isWalkable, opacity, onClick, children }: {
     >
       <boxGeometry args={[0.95, 0.2, 0.95]} />
       <meshStandardMaterial 
-        color={isWalkable ? '#4a5568' : '#2d3748'} 
+        color={color}
         transparent={opacity < 1}
         opacity={opacity}
       />
@@ -98,7 +109,7 @@ function Tile({ x, y, isWalkable, opacity, onClick, children }: {
 
 function MiningRock({ x, y, isDepleted, opacity, onClick }: { x: number; y: number; isDepleted: boolean; opacity: number; onClick?: (e: any) => void }) {
   return (
-    <group position={[x, 0.3, y]} onClick={onClick}>
+    <group position={[0, 0.3, 0]} onClick={onClick}>
       <mesh castShadow>
         <boxGeometry args={[0.6, isDepleted ? 0.3 : 0.8, 0.5]} />
         <meshStandardMaterial color={isDepleted ? '#4a5568' : '#b7791f'} transparent={opacity < 1} opacity={opacity} />
@@ -118,7 +129,7 @@ function Tree({ x, y, isDepleted, treeType, opacity, onClick }: { x: number; y: 
   const leavesColor = treeType === 'oak_tree' ? '#276749' : '#2f855a';
   
   return (
-    <group position={[x, 0, y]} onClick={onClick}>
+    <group position={[0, 0, 0]} onClick={onClick}>
       <mesh position={[0, isDepleted ? 0.2 : 0.6, 0]} castShadow>
         <cylinderGeometry args={[0.15, 0.2, isDepleted ? 0.4 : 1.2, 6]} />
         <meshStandardMaterial color={isDepleted ? '#5a4a3a' : trunkColor} transparent={opacity < 1} opacity={opacity} />
@@ -139,95 +150,76 @@ function Tree({ x, y, isDepleted, treeType, opacity, onClick }: { x: number; y: 
   );
 }
 
-export function World({ worldObjects, otherPlayers, worldWidth, worldHeight, onMove, onHarvest }: WorldProps) {
-  const { position } = useGameStore();
+export function World({ worldObjects, worldTiles, otherPlayers, worldWidth, worldHeight, onMove, onHarvest }: WorldProps) {
+  const { position, performanceSettings } = useGameStore();
+  const viewDistance = performanceSettings.viewDistance;
   
   const objectMap = useMemo(() => {
     const map = new Map<string, WorldObjectState>();
     worldObjects.forEach(obj => map.set(`${obj.position.x},${obj.position.y}`, obj));
     return map;
   }, [worldObjects]);
-
-  const visibleChunks = useMemo(() => {
-    const chunks = new Set<string>();
-    const playerChunkX = Math.floor(position.x / CHUNK_SIZE);
-    const playerChunkY = Math.floor(position.y / CHUNK_SIZE);
-    
-    const viewChunks = Math.ceil(VIEW_DISTANCE / CHUNK_SIZE) + 1;
-    
-    for (let dy = -viewChunks; dy <= viewChunks; dy++) {
-      for (let dx = -viewChunks; dx <= viewChunks; dx++) {
-        const chunkX = playerChunkX + dx;
-        const chunkY = playerChunkY + dy;
-        
-        const centerX = chunkX * CHUNK_SIZE + CHUNK_SIZE / 2;
-        const centerY = chunkY * CHUNK_SIZE + CHUNK_SIZE / 2;
-        const dist = Math.sqrt(Math.pow(position.x - centerX, 2) + Math.pow(position.y - centerY, 2));
-        
-        if (dist <= VIEW_DISTANCE * 1.5) {
-          chunks.add(getChunkKey(chunkX, chunkY));
-        }
-      }
-    }
-    
-    return chunks;
-  }, [position.x, position.y]);
-
+  
+  const tileMap = useMemo(() => {
+    const map = new Map<string, string>();
+    worldTiles.forEach(tile => map.set(`${tile.x},${tile.y}`, tile.tileType));
+    return map;
+  }, [worldTiles]);
+  
   const tilesToRender = useMemo(() => {
-    const result: { x: number; y: number; opacity: number }[] = [];
+    const result: { x: number; y: number; tileType: string; opacity: number }[] = [];
     
-    for (const chunkKey of visibleChunks) {
-      const [chunkXStr, chunkYStr] = chunkKey.split(',');
-      const chunkX = parseInt(chunkXStr);
-      const chunkY = parseInt(chunkYStr);
-      
-      const startX = chunkX * CHUNK_SIZE;
-      const startY = chunkY * CHUNK_SIZE;
-      
-      for (let y = startY; y < startY + CHUNK_SIZE && y < worldHeight; y++) {
-        for (let x = startX; x < startX + CHUNK_SIZE && x < worldWidth; x++) {
-          const dist = Math.sqrt(Math.pow(position.x - x, 2) + Math.pow(position.y - y, 2));
-          
-          let opacity = 1;
-          if (dist > FOG_END) {
-            opacity = 0;
-          } else if (dist > FOG_START) {
-            opacity = 1 - (dist - FOG_START) / (FOG_END - FOG_START);
-          }
-          
-          if (opacity > 0) {
-            result.push({ x, y, opacity });
-          }
+    const minX = Math.max(0, Math.floor(position.x - viewDistance));
+    const maxX = Math.min(worldWidth - 1, Math.ceil(position.x + viewDistance));
+    const minY = Math.max(0, Math.floor(position.y - viewDistance));
+    const maxY = Math.min(worldHeight - 1, Math.ceil(position.y + viewDistance));
+    
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const dist = Math.sqrt(Math.pow(position.x - x, 2) + Math.pow(position.y - y, 2));
+        
+        let opacity = 1;
+        if (dist > FOG_END) {
+          opacity = 0;
+        } else if (dist > FOG_START) {
+          opacity = 1 - (dist - FOG_START) / (FOG_END - FOG_START);
+        }
+        
+        if (opacity > 0) {
+          const tileType = tileMap.get(`${x},${y}`) || 'grass';
+          result.push({ x, y, tileType, opacity });
         }
       }
     }
     
     return result;
-  }, [visibleChunks, worldWidth, worldHeight, position.x, position.y]);
+  }, [position.x, position.y, worldWidth, worldHeight, tileMap, viewDistance]);
 
   const objectsToRender = useMemo(() => {
     const result: { x: number; y: number; obj: WorldObjectState; opacity: number }[] = [];
+    const viewDist = viewDistance;
     
     for (const obj of worldObjects) {
-      const dist = Math.sqrt(
-        Math.pow(position.x - obj.position.x, 2) + 
-        Math.pow(position.y - obj.position.y, 2)
-      );
+      const dx = position.x - obj.position.x;
+      const dy = position.y - obj.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       
-      let opacity = 1;
-      if (dist > FOG_END) {
-        opacity = 0;
-      } else if (dist > FOG_START) {
-        opacity = 1 - (dist - FOG_START) / (FOG_END - FOG_START);
-      }
-      
-      if (opacity > 0) {
-        result.push({ x: obj.position.x, y: obj.position.y, obj, opacity });
+      if (dist <= viewDist) {
+        let opacity = 1;
+        if (dist > FOG_END) {
+          opacity = 0;
+        } else if (dist > FOG_START) {
+          opacity = 1 - (dist - FOG_START) / (FOG_END - FOG_START);
+        }
+        
+        if (opacity > 0) {
+          result.push({ x: obj.position.x, y: obj.position.y, obj, opacity });
+        }
       }
     }
     
     return result;
-  }, [worldObjects, position.x, position.y]);
+  }, [worldObjects, position.x, position.y, viewDistance]);
 
   const handleTileClick = useCallback((x: number, y: number) => {
     const dist = Math.abs(position.x - x) + Math.abs(position.y - y);
@@ -267,7 +259,7 @@ export function World({ worldObjects, otherPlayers, worldWidth, worldHeight, onM
         <meshStandardMaterial color="#1a202c" />
       </mesh>
       
-      {tilesToRender.map(({ x, y, opacity }) => {
+      {tilesToRender.map(({ x, y, tileType, opacity }) => {
         const worldObj = objectMap.get(`${x},${y}`);
         const isActive = worldObj?.status === 'active';
         
@@ -276,6 +268,7 @@ export function World({ worldObjects, otherPlayers, worldWidth, worldHeight, onM
             key={`${x},${y}`}
             x={x}
             y={y}
+            tileType={tileType}
             isWalkable={!worldObj || !isActive}
             opacity={opacity}
             onClick={() => handleTileClick(x, y)}

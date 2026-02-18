@@ -24,7 +24,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
   const tickStartTime = useGameStore((state) => state.tickStartTime);
   const tickDuration = useGameStore((state) => state.tickDuration);
   
-  const { x, y, isMoving } = usePositionInterpolation(
+  const { x, y, isMoving, movementProgress } = usePositionInterpolation(
     player.x, 
     player.y, 
     startX, 
@@ -46,6 +46,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
       facing={player.facing as any}
       appearance={appearance}
       isMoving={isMoving}
+      movementProgress={movementProgress}
       isLocalPlayer={false}
     />
   );

@@ -23,6 +23,18 @@ export interface CameraState {
 interface GameState {
   username: string | null;
   playerId: string | null;
+  isAdmin: boolean;
+  debugSettings: {
+    showTrueTile: boolean;
+    showTickInfo: boolean;
+    showCollisionMap: boolean;
+  };
+  performanceSettings: {
+    viewDistance: number;
+    shadowsEnabled: boolean;
+    smoothCamera: boolean;
+    showFps: boolean;
+  };
   xp: Record<SkillKey, number>;
   inventory: (InventorySlot | null)[];
   equipment: Record<string, string | null>;
@@ -33,6 +45,7 @@ interface GameState {
   isMoving: boolean;
   currentAction: PlayerAction | null;
   worldObjects: WorldObjectState[];
+  worldTiles: { x: number; y: number; tileType: string; height: number }[];
   chatLog: string[];
   isLoaded: boolean;
   players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>;
@@ -46,6 +59,7 @@ interface GameState {
 
   setUsername: (name: string) => void;
   setPlayerId: (id: string) => void;
+  setIsAdmin: (isAdmin: boolean) => void;
   setXp: (xp: Record<SkillKey, number>) => void;
   setInventory: (inv: (InventorySlot | null)[]) => void;
   setEquipment: (eq: Record<string, string | null>) => void;
@@ -54,8 +68,11 @@ interface GameState {
   setFacing: (facing: FacingDirection) => void;
   setWorldObjects: (objects: WorldObjectState[]) => void;
   setWorldSize: (width: number, height: number) => void;
+  setWorldTiles: (tiles: { x: number; y: number; tileType: string; height: number }[]) => void;
   setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => void;
   setCamera: (camera: Partial<CameraState>) => void;
+  setDebugSettings: (settings: Partial<GameState['debugSettings']>) => void;
+  setPerformanceSettings: (settings: Partial<GameState['performanceSettings']>) => void;
   setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => void;
   loadClientSettings: () => Promise<void>;
 
@@ -79,6 +96,18 @@ interface GameState {
 export const useGameStore = create<GameState>((set, get) => ({
   username: null,
   playerId: null,
+  isAdmin: false,
+  debugSettings: {
+    showTrueTile: false,
+    showTickInfo: false,
+    showCollisionMap: false,
+  },
+  performanceSettings: {
+    viewDistance: 14,
+    shadowsEnabled: true,
+    smoothCamera: true,
+    showFps: false,
+  },
   xp: {
     attack: 0,
     strength: 0,
@@ -101,6 +130,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isMoving: false,
   currentAction: null,
   worldObjects: INITIAL_WORLD_OBJECTS,
+  worldTiles: [],
   chatLog: [`Welcome to ${GAME_NAME}! Click a resource to harvest.`],
   isLoaded: false,
   players: {},
@@ -114,10 +144,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setUsername: (name) => set({ username: name }),
   setPlayerId: (id) => set({ playerId: id }),
+  setIsAdmin: (isAdmin) => set({ isAdmin }),
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
   setWorldSize: (width, height) => set({ worldWidth: width, worldHeight: height }),
+  setWorldTiles: (tiles) => set({ worldTiles: tiles }),
   setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => set((state) => {
     const hasReachedTarget = state.targetDestination 
       ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
@@ -138,9 +170,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setFacing: (facing) => set({ facing }),
   setIsMoving: (moving: boolean) => set({ isMoving: moving }),
   setWorldObjects: (objects) => set({ worldObjects: objects }),
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => set((state) => ({ 
-    players,
-    tickStartTime: tickStartTime ?? state.tickStartTime
+  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string }>, tickStartTime?: number) => set(() => ({ 
+    players
   })),
   
   setCamera: (camera: Partial<CameraState>) => {
@@ -155,6 +186,26 @@ export const useGameStore = create<GameState>((set, get) => ({
         cameraPhi: updated.phi,
         cameraDistance: updated.distance,
       });
+    }
+  },
+  
+  setDebugSettings: (settings: Partial<GameState['debugSettings']>) => {
+    const current = get().debugSettings;
+    const updated = { ...current, ...settings };
+    set({ debugSettings: updated });
+    const username = get().username;
+    if (username) {
+      saveSettings(username, { debugSettings: updated });
+    }
+  },
+  
+  setPerformanceSettings: (settings: Partial<GameState['performanceSettings']>) => {
+    const current = get().performanceSettings;
+    const updated = { ...current, ...settings };
+    set({ performanceSettings: updated });
+    const username = get().username;
+    if (username) {
+      saveSettings(username, { performanceSettings: updated });
     }
   },
   
@@ -178,6 +229,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         distance: settings.cameraDistance,
       },
       uiTab: settings.uiTab,
+      debugSettings: settings.debugSettings,
+      performanceSettings: settings.performanceSettings,
       cameraRestored: true,
     });
   },
@@ -419,7 +472,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventory: data.inventory,
       equipment: data.equipment,
       position: data.position,
-      worldObjects: INITIAL_WORLD_OBJECTS,
       isLoaded: true,
     });
   },

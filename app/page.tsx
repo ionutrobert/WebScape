@@ -6,11 +6,45 @@ import { SKILLS_CONFIG, xpToLevel, levelProgress } from '@/data/skills';
 import { SkillKey, PositionUpdate, PlayersUpdate, InitData } from '@/shared/types';
 import { GameLoop } from '@/client/components/GameLoop';
 import { GameScene } from '@/client/components/GameScene';
-import { Backpack, User, Sword, Send } from 'lucide-react';
 import { GAME_NAME } from '@/data/game';
 import { io, Socket } from 'socket.io-client';
+import { Backpack, User, Sword, Send, Activity } from 'lucide-react';
+import { useFrame } from '@react-three/fiber';
 
-type TabType = 'inventory' | 'skills' | 'equipment';
+type TabType = 'inventory' | 'skills' | 'equipment' | 'debug';
+
+function FPSCounter() {
+  const [fps, setFps] = useState(0);
+  const frames = useRef(0);
+  const lastTime = useRef(performance.now());
+
+  useEffect(() => {
+    let animationId: number;
+
+    const updateFPS = () => {
+      frames.current++;
+      const now = performance.now();
+      const delta = now - lastTime.current;
+
+      if (delta >= 1000) {
+        setFps(Math.round((frames.current * 1000) / delta));
+        frames.current = 0;
+        lastTime.current = now;
+      }
+
+      animationId = requestAnimationFrame(updateFPS);
+    };
+
+    animationId = requestAnimationFrame(updateFPS);
+    return () => cancelAnimationFrame(animationId);
+  }, []);
+
+  return (
+    <div className="absolute top-4 right-4 bg-stone-900/90 border border-stone-700 rounded px-3 py-2 text-sm">
+      <div className="text-green-500 font-bold">FPS: {fps}</div>
+    </div>
+  );
+}
 
 export default function GamePage() {
   const [username, setUsername] = useState('');
@@ -25,9 +59,11 @@ export default function GamePage() {
   const { 
     xp, inventory, chatLog, isLoaded, players,
     setUsername: setStoreUsername, addChatMessage,
-    setWorldObjects, setWorldSize, setPosition, setInventory, setLoaded,
-    setPlayerId, setPlayers, playerId, loadClientSettings,
-    setTargetDestination, camera, cameraRestored
+    setWorldObjects, setWorldSize, setWorldTiles, setPosition, setInventory, setLoaded,
+    setPlayerId, setPlayers, playerId, loadClientSettings, setIsAdmin,
+    setTargetDestination, camera, cameraRestored,
+    debugSettings, setDebugSettings, performanceSettings, setPerformanceSettings,
+    position, tickStartTime, tickDuration
   } = useGameStore();
 
   useEffect(() => {
@@ -61,6 +97,8 @@ export default function GamePage() {
       setPlayerId(data.playerId);
       setWorldObjects(data.worldObjects);
       setWorldSize(data.worldWidth, data.worldHeight);
+      setWorldTiles(data.worldTiles || []);
+      setIsAdmin(data.isAdmin || false);
       
       const me = data.players?.find((p) => p.id === data.playerId);
       setPosition(me ? { x: me.x, y: me.y } : { x: 10, y: 10 });
@@ -79,6 +117,17 @@ export default function GamePage() {
 
     newSocket.on('world-update', (world: any[]) => {
       setWorldObjects(world);
+    });
+
+    newSocket.on('harvest-started', (data: { x: number; y: number; objectId: string }) => {
+      useGameStore.getState().setAction({
+        type: 'harvest',
+        targetX: data.x,
+        targetY: data.y,
+        objectId: data.objectId,
+        progress: 0,
+        ticksRemaining: 4,
+      });
     });
 
     newSocket.on('players-update', (data: PlayersUpdate) => {
@@ -187,6 +236,8 @@ export default function GamePage() {
           players={players}
         />
         
+        {performanceSettings.showFps && <FPSCounter />}
+        
         <div className="absolute top-4 left-4 bg-stone-900/90 border border-stone-700 rounded px-3 py-2 text-sm">
           <div className="text-amber-500 font-bold">{username}</div>
           <div className="text-stone-400 text-xs">
@@ -231,6 +282,13 @@ export default function GamePage() {
           >
             <Sword className="inline w-4 h-4 mr-1" />
             Equip
+          </button>
+          <button
+            onClick={() => setActiveTab('debug')}
+            className={`flex-1 py-2 px-2 text-sm font-bold ${activeTab === 'debug' ? 'bg-stone-700 text-amber-500' : 'text-stone-400 hover:bg-stone-750'}`}
+          >
+            <Activity className="inline w-4 h-4 mr-1" />
+            Debug
           </button>
         </div>
         
@@ -282,6 +340,103 @@ export default function GamePage() {
           
           {activeTab === 'equipment' && (
             <div className="text-stone-400 text-sm">No equipment yet.</div>
+          )}
+          
+          {activeTab === 'debug' && (
+            <div className="space-y-4">
+              <div className="bg-stone-900 border border-stone-700 rounded p-3">
+                <div className="font-bold text-amber-500 mb-2 text-sm">Tick Info</div>
+                <div className="space-y-1 text-xs text-stone-400">
+                  <div>Progress: {tickStartTime > 0 ? Math.round((Date.now() - tickStartTime) / tickDuration * 100) : 0}%</div>
+                  <div>Duration: {tickDuration}ms</div>
+                  <div>Visual: ({position.x.toFixed(2)}, {position.y.toFixed(2)})</div>
+                </div>
+              </div>
+              
+              <div className="bg-stone-900 border border-stone-700 rounded p-3">
+                <div className="font-bold text-amber-500 mb-2 text-sm">Performance</div>
+                
+                <div className="mb-3">
+                  <label className="block text-xs text-stone-400 mb-1">View Distance: {performanceSettings.viewDistance}</label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="25"
+                    value={performanceSettings.viewDistance}
+                    onChange={(e) => setPerformanceSettings({ viewDistance: parseInt(e.target.value) })}
+                    className="w-full accent-amber-600"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={performanceSettings.shadowsEnabled}
+                      onChange={(e) => setPerformanceSettings({ shadowsEnabled: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Shadows
+                  </label>
+                  
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={performanceSettings.smoothCamera}
+                      onChange={(e) => setPerformanceSettings({ smoothCamera: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Smooth Camera
+                  </label>
+                  
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={performanceSettings.showFps}
+                      onChange={(e) => setPerformanceSettings({ showFps: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Show FPS
+                  </label>
+                </div>
+              </div>
+              
+              <div className="bg-stone-900 border border-stone-700 rounded p-3">
+                <div className="font-bold text-amber-500 mb-2 text-sm">Debug Overlays</div>
+                
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={debugSettings.showTrueTile}
+                      onChange={(e) => setDebugSettings({ ...debugSettings, showTrueTile: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Show True Tile
+                  </label>
+                  
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={debugSettings.showTickInfo}
+                      onChange={(e) => setDebugSettings({ ...debugSettings, showTickInfo: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Show Tick Info
+                  </label>
+                  
+                  <label className="flex items-center gap-2 text-xs text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={debugSettings.showCollisionMap}
+                      onChange={(e) => setDebugSettings({ ...debugSettings, showCollisionMap: e.target.checked })}
+                      className="accent-amber-600"
+                    />
+                    Show Collision Map
+                  </label>
+                </div>
+              </div>
+            </div>
           )}
         </div>
         

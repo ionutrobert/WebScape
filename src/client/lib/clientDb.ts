@@ -5,6 +5,17 @@ export interface ClientSettings {
   uiTab: 'inventory' | 'skills' | 'equipment';
   chatVisible: boolean;
   soundEnabled: boolean;
+  debugSettings: {
+    showTrueTile: boolean;
+    showTickInfo: boolean;
+    showCollisionMap: boolean;
+  };
+  performanceSettings: {
+    viewDistance: number;
+    shadowsEnabled: boolean;
+    smoothCamera: boolean;
+    showFps: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: ClientSettings = {
@@ -14,6 +25,17 @@ const DEFAULT_SETTINGS: ClientSettings = {
   uiTab: 'inventory',
   chatVisible: true,
   soundEnabled: true,
+  debugSettings: {
+    showTrueTile: false,
+    showTickInfo: false,
+    showCollisionMap: false,
+  },
+  performanceSettings: {
+    viewDistance: 14,
+    shadowsEnabled: true,
+    smoothCamera: true,
+    showFps: false,
+  },
 };
 
 const DB_NAME = 'openscape_client';

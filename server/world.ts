@@ -1,12 +1,26 @@
 import { WorldObject } from './types';
-import { OBJECTS_CONFIG } from './config';
+import { OBJECTS_CONFIG, INITIAL_WORLD_OBJECTS } from './config';
 import { CollisionManager } from './collision';
 import { getWorldConfig, getWorldObjects, serverDb } from './database';
 
 let collisionManager: CollisionManager;
 let worldObjects: WorldObject[] = [];
+let worldTiles: { x: number; y: number; tileType: string; height: number }[] = [];
 let worldWidth = 20;
 let worldHeight = 20;
+
+async function loadTiles(): Promise<void> {
+  const dbTiles = await serverDb.worldTile.findMany();
+  if (dbTiles.length > 0) {
+    worldTiles = dbTiles.map(t => ({ x: t.x, y: t.y, tileType: t.tileType, height: t.height || 0 }));
+  } else {
+    for (let y = 0; y < worldHeight; y++) {
+      for (let x = 0; x < worldWidth; x++) {
+        worldTiles.push({ x, y, tileType: 'grass', height: 0 });
+      }
+    }
+  }
+}
 
 export async function initializeWorld(): Promise<void> {
   const config = await getWorldConfig();
@@ -18,7 +32,7 @@ export async function initializeWorld(): Promise<void> {
   collisionManager = new CollisionManager(worldWidth, worldHeight);
   
   const objects = await getWorldObjects();
-  worldObjects = objects;
+  worldObjects = objects.length > 0 ? objects : [...INITIAL_WORLD_OBJECTS];
   
   for (const obj of worldObjects) {
     if (obj.status === 'active') {
@@ -26,7 +40,9 @@ export async function initializeWorld(): Promise<void> {
     }
   }
   
-  console.log(`World initialized: ${worldWidth}x${worldHeight}, ${worldObjects.length} objects`);
+  await loadTiles();
+  
+  console.log(`World initialized: ${worldWidth}x${worldHeight}, ${worldObjects.length} objects, ${worldTiles.length} tiles`);
 }
 
 export async function getTileHeight(x: number, y: number): Promise<number> {
@@ -41,6 +57,8 @@ export const world = {
   getHeight: () => worldHeight,
   
   getAll: (): WorldObject[] => worldObjects,
+  
+  getTiles: () => worldTiles,
   
   getCollisionManager: (): CollisionManager => collisionManager,
   

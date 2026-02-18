@@ -3,15 +3,11 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 
-export interface InterpolatedPosition {
-  x: number;
-  y: number;
-}
-
 export interface UsePositionInterpolationResult {
   x: number;
   y: number;
   isMoving: boolean;
+  movementProgress: number;
 }
 
 const DEFAULT_TICK_DURATION_MS = 600;
@@ -25,85 +21,73 @@ export function usePositionInterpolation(
   tickStartTime?: number,
   tickDuration: number = DEFAULT_TICK_DURATION_MS
 ): UsePositionInterpolationResult {
-  const [mounted, setMounted] = useState(false);
-  const visualPosRef = useRef<InterpolatedPosition>({ x: targetX, y: targetY });
-  const targetRef = useRef({ x: targetX, y: targetY, startX, startY });
-  const animationStartTimeRef = useRef<number>(0);
-  const animationDurationRef = useRef<number>(0);
-  const isAnimatingRef = useRef(false);
+  const [result, setResult] = useState({ x: startX, y: startY, isMoving: false, movementProgress: 0 });
+  
+  const animRef = useRef({
+    fromX: startX,
+    fromY: startY,
+    toX: targetX,
+    toY: targetY,
+    startTime: 0,
+  });
+  
+  const visualRef = useRef({ x: startX, y: startY });
+  const lastInputsRef = useRef({ startX, startY, targetX, targetY });
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
+    const inputsChanged = 
+      startX !== lastInputsRef.current.startX ||
+      startY !== lastInputsRef.current.startY ||
+      targetX !== lastInputsRef.current.targetX ||
+      targetY !== lastInputsRef.current.targetY;
     
-    if (targetX !== targetRef.current.x || targetY !== targetRef.current.y) {
-      targetRef.current = { x: targetX, y: targetY, startX, startY };
-      visualPosRef.current = { x: startX, y: startY };
-      
-      if (tickStartTime) {
-        const now = performance.now();
-        const serverNow = Date.now();
-        const elapsedSinceTickStart = serverNow - tickStartTime;
-        const remainingTime = Math.max(0, tickDuration - elapsedSinceTickStart);
-        
-        if (remainingTime > 0) {
-          animationStartTimeRef.current = now - elapsedSinceTickStart;
-          animationDurationRef.current = tickDuration;
-          isAnimatingRef.current = true;
-        } else {
-          visualPosRef.current = { x: targetX, y: targetY };
-          isAnimatingRef.current = false;
-        }
+    if (inputsChanged) {
+      // If we have a valid visual position and inputs changed, 
+      // start from where we ARE visually, not from the server's start position
+      // This prevents jumping when new tick arrives mid-animation
+      if (animRef.current.startTime > 0) {
+        // Use current visual position as the new start to prevent jumping
+        animRef.current.fromX = visualRef.current.x;
+        animRef.current.fromY = visualRef.current.y;
       } else {
-        animationStartTimeRef.current = performance.now();
-        animationDurationRef.current = tickDuration;
-        isAnimatingRef.current = true;
+        animRef.current.fromX = startX;
+        animRef.current.fromY = startY;
       }
-    }
-  }, [targetX, targetY, startX, startY, tickStartTime, tickDuration, mounted]);
-
-  useFrame(() => {
-    if (!enabled || !mounted) {
-      visualPosRef.current = { x: targetX, y: targetY };
-      return;
-    }
-
-    if (!isAnimatingRef.current) {
-      visualPosRef.current = { x: targetX, y: targetY };
-      return;
-    }
-
-    const now = performance.now();
-    const elapsed = now - animationStartTimeRef.current;
-    let t = elapsed / animationDurationRef.current;
-    
-    if (t >= 1) {
-      t = 1;
-      isAnimatingRef.current = false;
-      visualPosRef.current = { x: targetX, y: targetY };
-    } else {
-      const sX = targetRef.current.startX;
-      const sY = targetRef.current.startY;
-      const eX = targetRef.current.x;
-      const eY = targetRef.current.y;
       
-      visualPosRef.current = {
-        x: sX + (eX - sX) * t,
-        y: sY + (eY - sY) * t,
-      };
+      animRef.current.toX = targetX;
+      animRef.current.toY = targetY;
+      animRef.current.startTime = 0;
+      
+      lastInputsRef.current = { startX, startY, targetX, targetY };
     }
+  }, [startX, startY, targetX, targetY]);
+
+  useFrame((state) => {
+    const anim = animRef.current;
+    
+    // Not moving - stay at target
+    if (!enabled || (anim.fromX === anim.toX && anim.fromY === anim.toY)) {
+      visualRef.current = { x: anim.toX, y: anim.toY };
+      setResult({ x: anim.toX, y: anim.toY, isMoving: false, movementProgress: 0 });
+      return;
+    }
+
+    // Start animation timer
+    if (anim.startTime === 0) {
+      anim.startTime = state.clock.elapsedTime * 1000;
+    }
+
+    const now = state.clock.elapsedTime * 1000;
+    const elapsed = now - anim.startTime;
+    const t = Math.min(elapsed / tickDuration, 1);
+    
+    // Linear interpolation
+    const newX = anim.fromX + (anim.toX - anim.fromX) * t;
+    const newY = anim.fromY + (anim.toY - anim.fromY) * t;
+    
+    visualRef.current = { x: newX, y: newY };
+    setResult({ x: newX, y: newY, isMoving: t < 1, movementProgress: t });
   });
 
-  if (!mounted) {
-    return { x: targetX, y: targetY, isMoving: false };
-  }
-
-  return { 
-    x: visualPosRef.current.x, 
-    y: visualPosRef.current.y, 
-    isMoving: isAnimatingRef.current 
-  };
+  return result;
 }

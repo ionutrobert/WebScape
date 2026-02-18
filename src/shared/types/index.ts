@@ -90,6 +90,10 @@ export interface PlayerAction {
   type: ActionType;
   targetPosition?: { x: number; y: number };
   targetObjectId?: string;
+  targetX?: number;
+  targetY?: number;
+  objectId?: string;
+  progress: number;
   ticksRemaining: number;
   skill?: SkillKey;
   xpReward?: number;
@@ -134,8 +138,10 @@ export interface InitData {
   playerId: string;
   players: ServerPlayer[];
   worldObjects: WorldObjectState[];
+  worldTiles: TileData[];
   tickStartTime: number;
   tickDuration: number;
   worldWidth: number;
   worldHeight: number;
+  isAdmin: boolean;
 }

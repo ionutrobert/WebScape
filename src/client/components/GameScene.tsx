@@ -162,17 +162,19 @@ interface GameSceneProps {
 }
 
 export function GameScene({ onMove, onHarvest, players }: GameSceneProps) {
-  const { position, worldObjects, worldWidth, worldHeight } = useGameStore();
+  const { position, worldObjects, worldTiles, worldWidth, worldHeight, performanceSettings } = useGameStore();
+  const shadowsEnabled = performanceSettings.shadowsEnabled;
 
   return (
     <Canvas camera={{ position: [20, 18, 20], fov: 50 }} style={{ background: '#1a1a2e' }}>
       <fog attach="fog" args={['#1a1a2e', 15, 25]} />
       <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
+      <directionalLight position={[10, 20, 10]} intensity={1} castShadow={shadowsEnabled} shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       
       <Suspense fallback={null}>
         <World 
           worldObjects={worldObjects}
+          worldTiles={worldTiles}
           otherPlayers={Object.values(players)}
           worldWidth={worldWidth}
           worldHeight={worldHeight}

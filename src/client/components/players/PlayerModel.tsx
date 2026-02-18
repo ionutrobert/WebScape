@@ -20,6 +20,8 @@ export interface PlayerModelProps {
   facing: FacingDirection;
   appearance: PlayerAppearance;
   isMoving?: boolean;
+  isRunning?: boolean;
+  movementProgress?: number;
   isLocalPlayer?: boolean;
 }
 
@@ -47,13 +49,18 @@ function getItemColor(itemId?: string): string {
   return ITEM_COLORS[itemId] || '#888888';
 }
 
-export function PlayerModel({ x, y, facing, appearance, isMoving, isLocalPlayer }: PlayerModelProps) {
+export function PlayerModel({ x, y, facing, appearance, isMoving, isRunning, movementProgress, isLocalPlayer }: PlayerModelProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const bobOffset = useRef(0);
+  const animationState = useRef({
+    walkPhase: 0,
+    breathePhase: 0,
+    prevMovementProgress: 0,
+  });
   const legLeftGroupRef = useRef<THREE.Group>(null);
   const legRightGroupRef = useRef<THREE.Group>(null);
   const armLeftGroupRef = useRef<THREE.Group>(null);
   const armRightGroupRef = useRef<THREE.Group>(null);
+  const bodyGroupRef = useRef<THREE.Group>(null);
   
   const rotation = getRotationForFacing(facing);
   
@@ -62,29 +69,51 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isLocalPlayer 
     
     groupRef.current.rotation.y = rotation;
     
-    if (isMoving) {
-      bobOffset.current += delta * 10.5;
-      const bob = Math.sin(bobOffset.current) * 0.05;
+    const anim = animationState.current;
+    const progress = movementProgress ?? 0;
+    const isCurrentlyMoving = isMoving && progress < 1;
+    
+    if (isCurrentlyMoving) {
+      const deltaProgress = progress - anim.prevMovementProgress;
+      
+      if (deltaProgress < -0.5) {
+        anim.walkPhase = 0;
+      } else {
+        const speedMultiplier = isRunning ? 2 : 1;
+        anim.walkPhase += deltaProgress * Math.PI * 2 * speedMultiplier;
+      }
+      anim.prevMovementProgress = progress;
+      
+      const walkPhase = anim.walkPhase;
+      const maxLegAngle = isRunning ? 0.8 : 0.5;
+      const maxArmAngle = isRunning ? 0.6 : 0.4;
       
       if (legLeftGroupRef.current && legRightGroupRef.current) {
-        const legSwing = Math.sin(bobOffset.current) * 0.5;
-        legLeftGroupRef.current.rotation.x = legSwing;
-        legRightGroupRef.current.rotation.x = -legSwing;
+        legLeftGroupRef.current.rotation.x = Math.sin(walkPhase) * maxLegAngle;
+        legRightGroupRef.current.rotation.x = Math.sin(walkPhase + Math.PI) * maxLegAngle;
       }
       
       if (armLeftGroupRef.current && armRightGroupRef.current) {
-        const armSwing = Math.sin(bobOffset.current) * 0.4;
-        armLeftGroupRef.current.rotation.x = -armSwing;
-        armRightGroupRef.current.rotation.x = armSwing;
+        armLeftGroupRef.current.rotation.x = -Math.sin(walkPhase) * maxArmAngle;
+        armRightGroupRef.current.rotation.x = -Math.sin(walkPhase + Math.PI) * maxArmAngle;
       }
       
-      groupRef.current.position.y = 0.5 + Math.abs(bob);
+      const bobAmount = isRunning ? 0.08 : 0.05;
+      const bob = Math.abs(Math.sin(walkPhase)) * bobAmount;
+      groupRef.current.position.y = 0.5 + bob;
     } else {
-      bobOffset.current = 0;
+      anim.prevMovementProgress = 0;
+      anim.walkPhase = 0;
+      anim.breathePhase += delta * 2;
+      
+      const breathe = Math.sin(anim.breathePhase) * 0.02;
+      
       if (legLeftGroupRef.current) legLeftGroupRef.current.rotation.x = 0;
       if (legRightGroupRef.current) legRightGroupRef.current.rotation.x = 0;
-      if (armLeftGroupRef.current) armLeftGroupRef.current.rotation.x = 0;
-      if (armRightGroupRef.current) armRightGroupRef.current.rotation.x = 0;
+      if (armLeftGroupRef.current) armLeftGroupRef.current.rotation.x = breathe;
+      if (armRightGroupRef.current) armRightGroupRef.current.rotation.x = breathe;
+      if (bodyGroupRef.current) bodyGroupRef.current.position.y = breathe * 2;
+      
       groupRef.current.position.y = 0.5;
     }
   });
@@ -96,68 +125,71 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isLocalPlayer 
   
   return (
     <group ref={groupRef} position={[x, 0.5, y]}>
-      {/* Body - torso */}
-      <mesh castShadow position={[0, 0.4, 0]}>
-        <boxGeometry args={[0.4, 0.5, 0.25]} />
-        <meshStandardMaterial color={chestColor} />
-      </mesh>
-      
-      {/* Belt */}
-      <mesh position={[0, 0.18, 0]}>
-        <boxGeometry args={[0.42, 0.05, 0.26]} />
-        <meshStandardMaterial color="#4a3728" />
-      </mesh>
-      
-      {/* Head */}
-      <mesh position={[0, 0.85, 0]} castShadow>
-        <boxGeometry args={[0.3, 0.3, 0.3]} />
-        <meshStandardMaterial color={appearance.headColor} />
-      </mesh>
-      
-      {/* Helmet (if equipped) */}
-      {helmColor && (
-        <mesh position={[0, 0.9, 0]} castShadow>
-          <boxGeometry args={[0.34, 0.25, 0.34]} />
-          <meshStandardMaterial color={helmColor} />
-        </mesh>
-      )}
-      
-      {/* Face - eyes */}
-      <group position={[0, 0.87, 0.15]}>
-        {/* Left eye - white */}
-        <mesh position={[-0.06, 0.02, 0]}>
-          <boxGeometry args={[0.08, 0.08, 0.02]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-        {/* Left pupil */}
-        <mesh position={[-0.06, 0.02, 0.02]}>
-          <boxGeometry args={[0.04, 0.04, 0.02]} />
-          <meshStandardMaterial color="#1a202c" />
+      {/* Body group for breathing animation */}
+      <group ref={bodyGroupRef}>
+        {/* Body - torso */}
+        <mesh castShadow position={[0, 0.4, 0]}>
+          <boxGeometry args={[0.4, 0.5, 0.25]} />
+          <meshStandardMaterial color={chestColor} />
         </mesh>
         
-        {/* Right eye - white */}
-        <mesh position={[0.06, 0.02, 0]}>
-          <boxGeometry args={[0.08, 0.08, 0.02]} />
-          <meshStandardMaterial color="#ffffff" />
+        {/* Belt */}
+        <mesh position={[0, 0.18, 0]}>
+          <boxGeometry args={[0.42, 0.05, 0.26]} />
+          <meshStandardMaterial color="#4a3728" />
         </mesh>
-        {/* Right pupil */}
-        <mesh position={[0.06, 0.02, 0.02]}>
-          <boxGeometry args={[0.04, 0.04, 0.02]} />
+        
+        {/* Head */}
+        <mesh position={[0, 0.85, 0]} castShadow>
+          <boxGeometry args={[0.3, 0.3, 0.3]} />
+          <meshStandardMaterial color={appearance.headColor} />
+        </mesh>
+        
+        {/* Helmet (if equipped) */}
+        {helmColor && (
+          <mesh position={[0, 0.9, 0]} castShadow>
+            <boxGeometry args={[0.34, 0.25, 0.34]} />
+            <meshStandardMaterial color={helmColor} />
+          </mesh>
+        )}
+        
+        {/* Face - eyes */}
+        <group position={[0, 0.87, 0.15]}>
+          {/* Left eye - white */}
+          <mesh position={[-0.06, 0.02, 0]}>
+            <boxGeometry args={[0.08, 0.08, 0.02]} />
+            <meshStandardMaterial color="#ffffff" />
+          </mesh>
+          {/* Left pupil */}
+          <mesh position={[-0.06, 0.02, 0.02]}>
+            <boxGeometry args={[0.04, 0.04, 0.02]} />
+            <meshStandardMaterial color="#1a202c" />
+          </mesh>
+          
+          {/* Right eye - white */}
+          <mesh position={[0.06, 0.02, 0]}>
+            <boxGeometry args={[0.08, 0.08, 0.02]} />
+            <meshStandardMaterial color="#ffffff" />
+          </mesh>
+          {/* Right pupil */}
+          <mesh position={[0.06, 0.02, 0.02]}>
+            <boxGeometry args={[0.04, 0.04, 0.02]} />
+            <meshStandardMaterial color="#1a202c" />
+          </mesh>
+        </group>
+        
+        {/* Nose */}
+        <mesh position={[0, 0.8, 0.18]} castShadow>
+          <boxGeometry args={[0.08, 0.1, 0.08]} />
+          <meshStandardMaterial color={appearance.headColor} />
+        </mesh>
+        
+        {/* Mouth */}
+        <mesh position={[0, 0.74, 0.15]}>
+          <boxGeometry args={[0.12, 0.03, 0.02]} />
           <meshStandardMaterial color="#1a202c" />
         </mesh>
       </group>
-      
-      {/* Nose */}
-      <mesh position={[0, 0.8, 0.18]} castShadow>
-        <boxGeometry args={[0.08, 0.1, 0.08]} />
-        <meshStandardMaterial color={appearance.headColor} />
-      </mesh>
-      
-      {/* Mouth */}
-      <mesh position={[0, 0.74, 0.15]}>
-        <boxGeometry args={[0.12, 0.03, 0.02]} />
-        <meshStandardMaterial color="#1a202c" />
-      </mesh>
       
       {/* Left Arm - shoulder group */}
       <group ref={armLeftGroupRef} position={[-0.26, 0.6, 0]}>

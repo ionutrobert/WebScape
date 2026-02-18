@@ -1,31 +1,43 @@
 import { playerManager } from '../players';
 import { world } from '../world';
-import { OBJECTS_CONFIG, PICKAXE_TIERS, AXE_TIERS } from '../config';
+import { OBJECTS_CONFIG } from '../config';
 import { ActiveHarvest } from '../types';
 
 const activeHarvests = new Map<string, ActiveHarvest>();
 
-function calculateMiningChance(miningLevel: number, pickaxeTier: number): number {
-  const baseChance = 0.5;
-  const levelBonus = (miningLevel - 1) / 100;
-  const pickaxeBonus = pickaxeTier * 0.05;
-  return Math.min(0.95, baseChance + levelBonus + pickaxeBonus);
+const HARVEST_TICK_INTERVAL = 4;
+
+function getBaseSuccessChance(skillLevel: number, objectLevelReq: number): number {
+  const levelDiff = skillLevel - objectLevelReq;
+  if (levelDiff >= 20) return 0.8;
+  if (levelDiff >= 10) return 0.6;
+  if (levelDiff >= 0) return 0.4;
+  if (levelDiff >= -5) return 0.25;
+  return 0.15;
 }
 
-function calculateWoodcuttingChance(woodcuttingLevel: number, axeTier: number): number {
-  const baseChance = 0.5;
-  const levelBonus = (woodcuttingLevel - 1) / 100;
-  const axeBonus = axeTier * 0.05;
-  return Math.min(0.95, baseChance + levelBonus + axeBonus);
+function calculateMiningChance(skillLevel: number, pickaxeTier: number, objectLevelReq: number): number {
+  const baseChance = getBaseSuccessChance(skillLevel, objectLevelReq);
+  const tierBonus = pickaxeTier * 0.03;
+  return Math.min(0.95, baseChance + tierBonus);
+}
+
+function calculateWoodcuttingChance(skillLevel: number, axeTier: number, objectLevelReq: number): number {
+  const baseChance = getBaseSuccessChance(skillLevel, objectLevelReq);
+  const tierBonus = axeTier * 0.03;
+  return Math.min(0.95, baseChance + tierBonus);
 }
 
 export function startHarvest(playerId: string, x: number, y: number, objectId: string): { valid: boolean; reason?: string } {
   const player = playerManager.get(playerId);
   if (!player) return { valid: false, reason: 'Player not found' };
   
-  const dist = Math.abs(player.x - x) + Math.abs(player.y - y);
-  if (dist > 1) {
-    return { valid: false, reason: 'Too far away.' };
+  const dx = Math.abs(player.x - x);
+  const dy = Math.abs(player.y - y);
+  const isAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+  
+  if (!isAdjacent) {
+    return { valid: false, reason: 'You must be standing next to it.' };
   }
   
   const obj = world.getAt(x, y);
@@ -38,8 +50,11 @@ export function startHarvest(playerId: string, x: number, y: number, objectId: s
     return { valid: false, reason: 'Unknown object.' };
   }
   
-  if (config.levelReq && player.skills[config.skillType || 'mining'] < config.levelReq) {
-    return { valid: false, reason: `You need ${config.levelReq} ${config.skillType} to harvest this.` };
+  const skillType = config.skillType || 'mining';
+  const skillLevel = player.skills[skillType] || 1;
+  
+  if (skillLevel < config.levelReq) {
+    return { valid: false, reason: `You need ${config.levelReq} ${skillType} to harvest this.` };
   }
   
   const key = `${playerId}-${x}-${y}`;
@@ -51,14 +66,11 @@ export function startHarvest(playerId: string, x: number, y: number, objectId: s
   
   activeHarvests.set(key, {
     playerId,
-    ticksRemaining: config.skillType === 'mining' 
-      ? (config.miningTicks || 8) - (toolTier > 0 ? Math.floor(toolTier / 2) : 0)
-      : (config.choppingTicks || 4),
+    ticksRemaining: HARVEST_TICK_INTERVAL,
     objectId,
     x,
     y,
     toolTier,
-    attempts: 0,
     successfulHits: 0,
   });
   
@@ -66,23 +78,6 @@ export function startHarvest(playerId: string, x: number, y: number, objectId: s
 }
 
 function getEquippedToolTier(itemId: string, toolRequired: string): number {
-  if (toolRequired === 'pickaxe') {
-    for (const [tier, ticks] of Object.entries(PICKAXE_TIERS)) {
-      if (itemId.includes(tier + '_pickaxe') || itemId.includes('_pickaxe') && parseInt(tier) === getTierFromItem(itemId)) {
-        return parseInt(tier);
-      }
-    }
-  } else if (toolRequired === 'axe') {
-    for (const [tier, ticks] of Object.entries(AXE_TIERS)) {
-      if (itemId.includes(tier + '_axe') || itemId.includes('_axe') && parseInt(tier) === getTierFromItem(itemId)) {
-        return parseInt(tier);
-      }
-    }
-  }
-  return 0;
-}
-
-function getTierFromItem(itemId: string): number {
   const tierMatch = itemId.match(/(bronze|iron|steel|black|mithril|adamant|rune|dragon)/i);
   const tierMap: Record<string, number> = {
     bronze: 1, iron: 2, steel: 3, black: 4, mithril: 5, adamant: 6, rune: 7, dragon: 8
@@ -106,32 +101,36 @@ export function processHarvests(): { completed: ActiveHarvest[] } {
       continue;
     }
     
-    harvest.attempts = (harvest.attempts || 0) + 1;
+    harvest.ticksRemaining--;
     
-    const skillType = config.skillType || 'mining';
-    const skillLevel = player.skills[skillType] || 1;
-    
-    let successChance: number;
-    if (skillType === 'mining') {
-      successChance = calculateMiningChance(skillLevel, harvest.toolTier || 0);
-    } else {
-      successChance = calculateWoodcuttingChance(skillLevel, harvest.toolTier || 0);
-    }
-    
-    const roll = Math.random();
-    if (roll < successChance) {
-      harvest.successfulHits = (harvest.successfulHits || 0) + 1;
-    }
-    
-    if ((harvest.successfulHits || 0) >= config.depletionTicks) {
-      playerManager.addToInventory(harvest.playerId, config.resource, config.resourceQty || 1);
-      playerManager.addXp(harvest.playerId, skillType, config.xp);
+    if (harvest.ticksRemaining <= 0) {
+      harvest.ticksRemaining = HARVEST_TICK_INTERVAL;
       
-      const depleted = world.deplete(harvest.x, harvest.y);
-      if (depleted) {
-        completed.push(harvest);
+      const skillType = config.skillType || 'mining';
+      const skillLevel = player.skills[skillType] || 1;
+      
+      let successChance: number;
+      if (skillType === 'mining') {
+        successChance = calculateMiningChance(skillLevel, harvest.toolTier || 0, config.levelReq);
+      } else {
+        successChance = calculateWoodcuttingChance(skillLevel, harvest.toolTier || 0, config.levelReq);
       }
-      activeHarvests.delete(key);
+      
+      const roll = Math.random();
+      if (roll < successChance) {
+        harvest.successfulHits = (harvest.successfulHits || 0) + 1;
+      }
+      
+      if ((harvest.successfulHits || 0) >= config.depletionTicks) {
+        playerManager.addToInventory(harvest.playerId, config.resource, config.resourceQty || 1);
+        playerManager.addXp(harvest.playerId, skillType, config.xp);
+        
+        const depleted = world.deplete(harvest.x, harvest.y);
+        if (depleted) {
+          completed.push(harvest);
+        }
+        activeHarvests.delete(key);
+      }
     }
   }
   

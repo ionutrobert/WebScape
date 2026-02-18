@@ -17,6 +17,9 @@ export interface Player {
   targetY?: number;
   prevX?: number;
   prevY?: number;
+  hp?: number;
+  maxHp?: number;
+  godMode?: boolean;
 }
 
 export interface WorldObject {

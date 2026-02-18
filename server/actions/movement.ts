@@ -118,7 +118,8 @@ export function setMovementTarget(playerId: string, targetX: number, targetY: nu
     playerManager.setTarget(playerId, targetX, targetY);
   }
   
-  calculatePath(playerId, player.x, player.y, playerManager.getTarget(playerId)!.x, playerManager.getTarget(playerId)!.y);
+  const target = playerManager.getTarget(playerId)!;
+  calculatePath(playerId, player.x, player.y, target.x, target.y);
   
   return { valid: true };
 }

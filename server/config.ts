@@ -46,7 +46,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   copper_rock: { 
     respawnTicks: 8, 
     depletionTicks: 4, 
-    miningTicks: 8,
     toolRequired: 'pickaxe', 
     xp: 17.5, 
     resource: 'copper_ore', 
@@ -56,7 +55,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   tin_rock: { 
     respawnTicks: 8, 
     depletionTicks: 4, 
-    miningTicks: 8,
     toolRequired: 'pickaxe', 
     xp: 17.5, 
     resource: 'tin_ore', 
@@ -66,7 +64,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   iron_rock: { 
     respawnTicks: 12, 
     depletionTicks: 5, 
-    miningTicks: 7,
     toolRequired: 'pickaxe', 
     xp: 35, 
     resource: 'iron_ore', 
@@ -76,7 +73,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   silver_rock: { 
     respawnTicks: 15, 
     depletionTicks: 5, 
-    miningTicks: 6,
     toolRequired: 'pickaxe', 
     xp: 40, 
     resource: 'silver_ore', 
@@ -86,7 +82,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   coal_rock: { 
     respawnTicks: 18, 
     depletionTicks: 6, 
-    miningTicks: 5,
     toolRequired: 'pickaxe', 
     xp: 50, 
     resource: 'coal', 
@@ -96,7 +91,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   gold_rock: { 
     respawnTicks: 22, 
     depletionTicks: 7, 
-    miningTicks: 5,
     toolRequired: 'pickaxe', 
     xp: 65, 
     resource: 'gold_ore', 
@@ -106,7 +100,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   mithril_rock: { 
     respawnTicks: 25, 
     depletionTicks: 8, 
-    miningTicks: 4,
     toolRequired: 'pickaxe', 
     xp: 80, 
     resource: 'mithril_ore', 
@@ -116,7 +109,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   adamant_rock: { 
     respawnTicks: 30, 
     depletionTicks: 10, 
-    miningTicks: 3,
     toolRequired: 'pickaxe', 
     xp: 95, 
     resource: 'adamant_ore', 
@@ -126,7 +118,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   rune_rock: { 
     respawnTicks: 40, 
     depletionTicks: 12, 
-    miningTicks: 3,
     toolRequired: 'pickaxe', 
     xp: 125, 
     resource: 'rune_ore', 
@@ -138,7 +129,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   tree: { 
     respawnTicks: 6, 
     depletionTicks: 1, 
-    choppingTicks: 4,
     toolRequired: 'axe', 
     xp: 25, 
     resource: 'logs', 
@@ -148,7 +138,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   oak_tree: { 
     respawnTicks: 10, 
     depletionTicks: 1, 
-    choppingTicks: 4,
     toolRequired: 'axe', 
     xp: 37.5, 
     resource: 'oak_log', 
@@ -158,7 +147,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   willow_tree: { 
     respawnTicks: 14, 
     depletionTicks: 1, 
-    choppingTicks: 4,
     toolRequired: 'axe', 
     xp: 67.5, 
     resource: 'willow_log', 
@@ -168,7 +156,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   maple_tree: { 
     respawnTicks: 18, 
     depletionTicks: 1, 
-    choppingTicks: 4,
     toolRequired: 'axe', 
     xp: 100, 
     resource: 'maple_log', 
@@ -178,7 +165,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   yew_tree: { 
     respawnTicks: 22, 
     depletionTicks: 1, 
-    choppingTicks: 5,
     toolRequired: 'axe', 
     xp: 175, 
     resource: 'yew_log', 
@@ -188,7 +174,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   magic_tree: { 
     respawnTicks: 28, 
     depletionTicks: 1, 
-    choppingTicks: 5,
     toolRequired: 'axe', 
     xp: 250, 
     resource: 'magic_log', 
@@ -198,7 +183,6 @@ export const OBJECTS_CONFIG: Record<string, ServerConfig> = {
   redwood_tree: { 
     respawnTicks: 35, 
     depletionTicks: 1, 
-    choppingTicks: 6,
     toolRequired: 'axe', 
     xp: 380, 
     resource: 'redwood_log', 

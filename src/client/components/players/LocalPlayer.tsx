@@ -7,9 +7,9 @@ import { visualPositionRef } from '@/client/lib/visualPositionRef';
 import { useEffect } from 'react';
 
 export function LocalPlayer() {
-  const { position, startPosition, facing, equipment, tickStartTime, tickDuration } = useGameStore();
+  const { position, startPosition, facing, equipment, tickStartTime, tickDuration, debugSettings } = useGameStore();
   
-  const { x, y, isMoving } = usePositionInterpolation(
+  const { x, y, isMoving, movementProgress } = usePositionInterpolation(
     position.x, 
     position.y, 
     startPosition.x, 
@@ -22,7 +22,7 @@ export function LocalPlayer() {
   useEffect(() => {
     visualPositionRef.x = x;
     visualPositionRef.y = y;
-  });
+  }, [x, y]);
   
   const appearance: PlayerAppearance = {
     ...DEFAULT_APPEARANCE,
@@ -33,13 +33,22 @@ export function LocalPlayer() {
   };
   
   return (
-    <PlayerModel
-      x={x}
-      y={y}
-      facing={facing}
-      appearance={appearance}
-      isMoving={isMoving}
-      isLocalPlayer={true}
-    />
+    <>
+      <PlayerModel
+        x={x}
+        y={y}
+        facing={facing}
+        appearance={appearance}
+        isMoving={isMoving}
+        movementProgress={movementProgress}
+        isLocalPlayer={true}
+      />
+      {debugSettings.showTrueTile && (
+        <mesh position={[position.x, 0.5, position.y]}>
+          <sphereGeometry args={[0.15, 8, 8]} />
+          <meshBasicMaterial color="yellow" transparent opacity={0.8} />
+        </mesh>
+      )}
+    </>
   );
 }
