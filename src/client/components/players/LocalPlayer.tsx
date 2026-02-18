@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import { useGameStore } from '@/client/stores/gameStore';
-import { PlayerModel, DEFAULT_APPEARANCE, PlayerAppearance } from './PlayerModel';
-import { usePositionInterpolation } from '@/client/lib/usePositionInterpolation';
-import { visualPositionRef } from '@/client/lib/visualPositionRef';
-import { useEffect, useMemo } from 'react';
+import { useGameStore } from "@/client/stores/gameStore";
+import {
+  PlayerModel,
+  DEFAULT_APPEARANCE,
+  PlayerAppearance,
+} from "./PlayerModel";
+import { usePositionInterpolation } from "@/client/lib/usePositionInterpolation";
+import { visualPositionRef } from "@/client/lib/visualPositionRef";
+import { useEffect, useMemo } from "react";
 
 export function LocalPlayer() {
   const position = useGameStore((s) => s.position);
@@ -15,30 +19,35 @@ export function LocalPlayer() {
   const tickDuration = useGameStore((s) => s.tickDuration);
   const debugSettings = useGameStore((s) => s.debugSettings);
   const isRunning = useGameStore((s) => s.isRunning);
-  
+  const currentAction = useGameStore((s) => s.currentAction);
+  const isHarvesting = currentAction?.type === "harvest";
+
   const { x, y, isMoving, movementProgress } = usePositionInterpolation(
-    position.x, 
-    position.y, 
-    startPosition.x, 
-    startPosition.y, 
+    position.x,
+    position.y,
+    startPosition.x,
+    startPosition.y,
     true,
     tickStartTime,
-    tickDuration
+    tickDuration,
   );
-  
+
   useEffect(() => {
     visualPositionRef.x = x;
     visualPositionRef.y = y;
   }, [x, y]);
-  
-  const appearance: PlayerAppearance = useMemo(() => ({
-    ...DEFAULT_APPEARANCE,
-    mainHand: equipment.mainHand || undefined,
-    chest: equipment.chest || undefined,
-    legs: equipment.legs || undefined,
-    helm: equipment.helm || undefined,
-  }), [equipment]);
-  
+
+  const appearance: PlayerAppearance = useMemo(
+    () => ({
+      ...DEFAULT_APPEARANCE,
+      mainHand: equipment.mainHand || undefined,
+      chest: equipment.chest || undefined,
+      legs: equipment.legs || undefined,
+      helm: equipment.helm || undefined,
+    }),
+    [equipment],
+  );
+
   return (
     <>
       <PlayerModel
@@ -48,6 +57,7 @@ export function LocalPlayer() {
         appearance={appearance}
         isMoving={isMoving}
         isRunning={isRunning}
+        isHarvesting={isHarvesting}
         movementProgress={movementProgress}
         isLocalPlayer={true}
       />

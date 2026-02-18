@@ -1,4 +1,4 @@
-export type ToolType = 'pickaxe' | 'axe' | 'none';
+export type ToolType = "pickaxe" | "axe" | "none";
 
 export interface ItemDefinition {
   id: string;
@@ -7,7 +7,7 @@ export interface ItemDefinition {
   stackable: boolean;
   tradable: boolean;
   droppable: boolean;
-  equipmentSlot?: 'mainHand' | 'chest' | 'legs' | 'cape' | 'helm';
+  equipmentSlot?: "mainHand" | "chest" | "legs" | "cape" | "helm";
   toolType?: ToolType;
   toolTier?: number;
   icon?: string;
@@ -20,7 +20,15 @@ export interface ItemDefinition {
   };
 }
 
-export type TileType = 'grass' | 'dirt' | 'water' | 'sand' | 'stone' | 'snow' | 'cave' | 'dungeon';
+export type TileType =
+  | "grass"
+  | "dirt"
+  | "water"
+  | "sand"
+  | "stone"
+  | "snow"
+  | "cave"
+  | "dungeon";
 
 export const TILE_COLORS: Record<TileType, number> = {
   grass: 0x4a7c23,
@@ -33,13 +41,13 @@ export const TILE_COLORS: Record<TileType, number> = {
   dungeon: 0x2a2a2a,
 };
 
-export type WorldObjectType = 'resource' | 'static' | 'decoration';
+export type WorldObjectType = "resource" | "static" | "decoration";
 
 export interface ObjectDefinition {
   id: string;
   name: string;
   type: WorldObjectType;
-  skillType?: 'mining' | 'woodcutting';
+  skillType?: "mining" | "woodcutting";
   interactionDistance?: number;
   levelReq?: number;
   xpGranted?: number;
@@ -54,7 +62,7 @@ export interface ObjectDefinition {
   depletedModel?: string;
 }
 
-export type ObjectStatus = 'active' | 'depleted';
+export type ObjectStatus = "active" | "depleted";
 
 export interface WorldObjectState {
   position: { x: number; y: number };
@@ -76,7 +84,12 @@ export interface WorldConfig {
   height: number;
 }
 
-export type SkillKey = 'attack' | 'strength' | 'defense' | 'mining' | 'woodcutting';
+export type SkillKey =
+  | "attack"
+  | "strength"
+  | "defense"
+  | "mining"
+  | "woodcutting";
 
 export interface SkillDefinition {
   key: SkillKey;
@@ -84,7 +97,7 @@ export interface SkillDefinition {
   xpPerLevel: number;
 }
 
-export type ActionType = 'harvest' | 'move' | 'combat';
+export type ActionType = "harvest" | "move" | "combat";
 
 export interface PlayerAction {
   type: ActionType;
@@ -110,7 +123,15 @@ export interface Position {
   y: number;
 }
 
-export type FacingDirection = 'north' | 'south' | 'east' | 'west' | 'northeast' | 'southeast' | 'southwest' | 'northwest';
+export type FacingDirection =
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "northeast"
+  | "southeast"
+  | "southwest"
+  | "northwest";
 
 export interface ServerPlayer {
   id: string;
@@ -120,6 +141,7 @@ export interface ServerPlayer {
   facing: string;
   isRunning?: boolean;
   runEnergy?: number;
+  isHarvesting?: boolean;
 }
 
 export interface PositionUpdate {

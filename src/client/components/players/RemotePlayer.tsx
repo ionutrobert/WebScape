@@ -1,8 +1,12 @@
-'use client';
+"use client";
 
-import { PlayerModel, DEFAULT_APPEARANCE, PlayerAppearance } from './PlayerModel';
-import { usePositionInterpolation } from '@/client/lib/usePositionInterpolation';
-import { useGameStore } from '@/client/stores/gameStore';
+import {
+  PlayerModel,
+  DEFAULT_APPEARANCE,
+  PlayerAppearance,
+} from "./PlayerModel";
+import { usePositionInterpolation } from "@/client/lib/usePositionInterpolation";
+import { useGameStore } from "@/client/stores/gameStore";
 
 interface RemotePlayerData {
   id: string;
@@ -13,6 +17,7 @@ interface RemotePlayerData {
   startY?: number;
   facing: string;
   isRunning?: boolean;
+  isHarvesting?: boolean;
 }
 
 interface RemotePlayerProps {
@@ -24,22 +29,22 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
   const startY = player.startY ?? player.y;
   const tickStartTime = useGameStore((state) => state.tickStartTime);
   const tickDuration = useGameStore((state) => state.tickDuration);
-  
+
   const { x, y, isMoving, movementProgress } = usePositionInterpolation(
-    player.x, 
-    player.y, 
-    startX, 
-    startY, 
+    player.x,
+    player.y,
+    startX,
+    startY,
     true,
     tickStartTime,
-    tickDuration
+    tickDuration,
   );
-  
+
   const appearance: PlayerAppearance = {
     ...DEFAULT_APPEARANCE,
-    bodyColor: '#dc2626',
+    bodyColor: "#dc2626",
   };
-  
+
   return (
     <PlayerModel
       x={x}
@@ -48,6 +53,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
       appearance={appearance}
       isMoving={isMoving}
       isRunning={player.isRunning}
+      isHarvesting={player.isHarvesting}
       movementProgress={movementProgress}
       isLocalPlayer={false}
     />

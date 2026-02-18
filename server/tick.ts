@@ -1,9 +1,9 @@
-import { Server } from 'socket.io';
-import { playerManager } from './players';
-import { world } from './world';
-import { processMovement } from './actions/movement';
-import { processHarvests } from './actions/harvest';
-import { OBJECTS_CONFIG } from './config';
+import { Server } from "socket.io";
+import { playerManager } from "./players";
+import { world } from "./world";
+import { processMovement } from "./actions/movement";
+import { processHarvests, getActiveHarvests } from "./actions/harvest";
+import { OBJECTS_CONFIG } from "./config";
 
 let io: Server;
 let lastTickStartTime = 0;
@@ -24,17 +24,28 @@ export function getTickDuration(): number {
 export function tick() {
   lastTickStartTime = Date.now();
   const tickStartTime = lastTickStartTime;
-  
-  const { completed } = processHarvests();
-  
-  for (const harvest of completed) {
+
+  const { completed, successes } = processHarvests();
+
+  for (const harvest of successes) {
     const config = OBJECTS_CONFIG[harvest.objectId];
-    io.to(harvest.playerId).emit('inventory-update', playerManager.getInventory(harvest.playerId));
-    io.to(harvest.playerId).emit('chat', { message: `You get ${config.resource}.`, type: 'system' });
+    io.to(harvest.playerId).emit(
+      "inventory-update",
+      playerManager.getInventory(harvest.playerId),
+    );
+    io.to(harvest.playerId).emit("chat", {
+      message: `You get ${config.resource}.`,
+      type: "system",
+    });
   }
-  
+
+  for (const harvest of completed) {
+    // Optional: send depletion message
+    // io.to(harvest.playerId).emit('chat', { message: `The ${OBJECTS_CONFIG[harvest.objectId].name} is depleted.`, type: 'system' });
+  }
+
   const worldChanged = world.tick();
-  
+
   for (const player of playerManager.getAll()) {
     const isRunning = playerManager.isRunning(player.id);
     const result = processMovement(player.id, isRunning);
@@ -42,30 +53,31 @@ export function tick() {
       if (isRunning) {
         playerManager.depleteRunEnergy(player.id, 1);
       }
-      io.to(player.id).emit('position-update', { 
-        x: result.newX, 
-        y: result.newY, 
+      io.to(player.id).emit("position-update", {
+        x: result.newX,
+        y: result.newY,
         startX: result.prevX,
         startY: result.prevY,
         facing: player.facing,
         tickStartTime,
         isRunning,
-        runEnergy: playerManager.getRunEnergy(player.id)
+        runEnergy: playerManager.getRunEnergy(player.id),
       });
     } else if (!playerManager.hasTarget(player.id)) {
       playerManager.restoreRunEnergy(player.id, 0.5);
     }
   }
-  
+
   broadcastPlayers();
-  
+
   if (worldChanged) {
     broadcastWorld();
   }
 }
 
 function broadcastPlayers() {
-  const players = playerManager.getAll().map(p => ({
+  const activeHarvests = Array.from(getActiveHarvests().values());
+  const players = playerManager.getAll().map((p) => ({
     id: p.id,
     username: p.username,
     x: p.x,
@@ -74,13 +86,14 @@ function broadcastPlayers() {
     startY: p.prevY ?? p.y,
     facing: p.facing,
     isRunning: p.isRunning,
-    runEnergy: p.runEnergy
+    runEnergy: p.runEnergy,
+    isHarvesting: activeHarvests.some((h) => h.playerId === p.id),
   }));
-  io.emit('players-update', { players, tickStartTime: lastTickStartTime });
+  io.emit("players-update", { players, tickStartTime: lastTickStartTime });
 }
 
 function broadcastWorld() {
-  io.emit('world-update', world.getAll());
+  io.emit("world-update", world.getAll());
 }
 
 export function startTickLoop(intervalMs: number = 600) {

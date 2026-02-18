@@ -26,5 +26,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code skills (installed locally, not for git)
+.claude/skills/
+
 # Documentation (local only)
 *.md

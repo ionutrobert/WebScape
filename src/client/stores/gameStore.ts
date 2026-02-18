@@ -1,18 +1,22 @@
-import { create } from 'zustand';
-import { 
-  SkillKey, 
-  InventorySlot, 
-  PlayerAction, 
+import { create } from "zustand";
+import {
+  SkillKey,
+  InventorySlot,
+  PlayerAction,
   WorldObjectState,
   Position,
   FacingDirection,
-  ToolType
-} from '@/shared/types';
-import { SKILLS_CONFIG, xpToLevel } from '@/data/skills';
-import { getToolTier, getToolType, ITEMS } from '@/data/items';
-import { OBJECTS, INITIAL_WORLD_OBJECTS } from '@/data/objects';
-import { GAME_NAME } from '@/data/game';
-import { loadSettings, saveSettings, ClientSettings } from '@/client/lib/clientDb';
+  ToolType,
+} from "@/shared/types";
+import { SKILLS_CONFIG, xpToLevel } from "@/data/skills";
+import { getToolTier, getToolType, ITEMS } from "@/data/items";
+import { OBJECTS, INITIAL_WORLD_OBJECTS } from "@/data/objects";
+import { GAME_NAME } from "@/data/game";
+import {
+  loadSettings,
+  saveSettings,
+  ClientSettings,
+} from "@/client/lib/clientDb";
 
 export interface CameraState {
   theta: number;
@@ -49,10 +53,21 @@ interface GameState {
   collisionMap: boolean[][];
   chatLog: string[];
   isLoaded: boolean;
-  players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>;
+  players: Record<
+    string,
+    {
+      id: string;
+      username: string;
+      x: number;
+      y: number;
+      facing: string;
+      isRunning?: boolean;
+      isHarvesting?: boolean;
+    }
+  >;
   camera: CameraState;
   cameraRestored: boolean;
-  uiTab: 'inventory' | 'skills' | 'equipment';
+  uiTab: "inventory" | "skills" | "equipment";
   tickStartTime: number;
   tickDuration: number;
   worldWidth: number;
@@ -66,18 +81,40 @@ interface GameState {
   setXp: (xp: Record<SkillKey, number>) => void;
   setInventory: (inv: (InventorySlot | null)[]) => void;
   setEquipment: (eq: Record<string, string | null>) => void;
-  setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => void;
+  setPosition: (
+    pos: Position,
+    startPos?: Position,
+    tickStartTime?: number,
+  ) => void;
   setTargetDestination: (target: Position | null) => void;
   setFacing: (facing: FacingDirection) => void;
   setWorldObjects: (objects: WorldObjectState[]) => void;
   setWorldSize: (width: number, height: number) => void;
-  setWorldTiles: (tiles: { x: number; y: number; tileType: string; height: number }[]) => void;
+  setWorldTiles: (
+    tiles: { x: number; y: number; tileType: string; height: number }[],
+  ) => void;
   setCollisionMap: (map: boolean[][]) => void;
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>, tickStartTime?: number) => void;
+  setPlayers: (
+    players: Record<
+      string,
+      {
+        id: string;
+        username: string;
+        x: number;
+        y: number;
+        facing: string;
+        isRunning?: boolean;
+        isHarvesting?: boolean;
+      }
+    >,
+    tickStartTime?: number,
+  ) => void;
   setCamera: (camera: Partial<CameraState>) => void;
-  setDebugSettings: (settings: Partial<GameState['debugSettings']>) => void;
-  setPerformanceSettings: (settings: Partial<GameState['performanceSettings']>) => void;
-  setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => void;
+  setDebugSettings: (settings: Partial<GameState["debugSettings"]>) => void;
+  setPerformanceSettings: (
+    settings: Partial<GameState["performanceSettings"]>,
+  ) => void;
+  setUiTab: (tab: "inventory" | "skills" | "equipment") => void;
   loadClientSettings: () => Promise<void>;
   setRunState: (isRunning: boolean, runEnergy: number) => void;
   toggleRun: () => void;
@@ -95,7 +132,12 @@ interface GameState {
 
   addChatMessage: (msg: string) => void;
   clearChatLog: () => void;
-  loadFromDb: (data: { xp: Record<SkillKey, number>; inventory: (InventorySlot | null)[]; equipment: Record<string, string | null>; position: Position }) => void;
+  loadFromDb: (data: {
+    xp: Record<SkillKey, number>;
+    inventory: (InventorySlot | null)[];
+    equipment: Record<string, string | null>;
+    position: Position;
+  }) => void;
   setLoaded: (loaded: boolean) => void;
 }
 
@@ -132,7 +174,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   position: { x: 10, y: 10 },
   startPosition: { x: 10, y: 10 },
   targetDestination: null,
-  facing: 'south',
+  facing: "south",
   isMoving: false,
   currentAction: null,
   worldObjects: INITIAL_WORLD_OBJECTS,
@@ -143,7 +185,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: {},
   camera: { theta: 0.7853981633974483, phi: 0.7853981633974483, distance: 15 },
   cameraRestored: false,
-  uiTab: 'inventory',
+  uiTab: "inventory",
   tickStartTime: 0,
   tickDuration: 600,
   worldWidth: 100,
@@ -157,38 +199,57 @@ export const useGameStore = create<GameState>((set, get) => ({
   setXp: (xp) => set({ xp }),
   setInventory: (inv) => set({ inventory: inv }),
   setEquipment: (eq) => set({ equipment: eq }),
-  setWorldSize: (width, height) => set({ worldWidth: width, worldHeight: height }),
+  setWorldSize: (width, height) =>
+    set({ worldWidth: width, worldHeight: height }),
   setWorldTiles: (tiles) => set({ worldTiles: tiles }),
   setCollisionMap: (map) => set({ collisionMap: map }),
-  setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) => set((state) => {
-    const hasReachedTarget = state.targetDestination 
-      ? (pos.x === state.targetDestination.x && pos.y === state.targetDestination.y)
-      : true;
-    return { 
-      position: pos, 
-      startPosition: startPos || pos,
-      isMoving: !hasReachedTarget,
-      tickStartTime: tickStartTime ?? state.tickStartTime
-    };
-  }),
-  setTargetDestination: (target) => set((state) => {
-    return { 
-      targetDestination: target,
-      isMoving: target !== null
-    };
-  }),
+  setPosition: (pos: Position, startPos?: Position, tickStartTime?: number) =>
+    set((state) => {
+      const hasReachedTarget = state.targetDestination
+        ? pos.x === state.targetDestination.x &&
+          pos.y === state.targetDestination.y
+        : true;
+      return {
+        position: pos,
+        startPosition: startPos || pos,
+        isMoving: !hasReachedTarget,
+        tickStartTime: tickStartTime ?? state.tickStartTime,
+      };
+    }),
+  setTargetDestination: (target) =>
+    set((state) => {
+      return {
+        targetDestination: target,
+        isMoving: target !== null,
+      };
+    }),
   setFacing: (facing) => set({ facing }),
   setIsMoving: (moving: boolean) => set({ isMoving: moving }),
   setWorldObjects: (objects) => set({ worldObjects: objects }),
-  setPlayers: (players: Record<string, { id: string; username: string; x: number; y: number; facing: string; isRunning?: boolean }>, tickStartTime?: number) => set(() => ({ 
-    players
-  })),
-  
+  setPlayers: (
+    players: Record<
+      string,
+      {
+        id: string;
+        username: string;
+        x: number;
+        y: number;
+        facing: string;
+        isRunning?: boolean;
+        isHarvesting?: boolean;
+      }
+    >,
+    tickStartTime?: number,
+  ) =>
+    set(() => ({
+      players,
+    })),
+
   setCamera: (camera: Partial<CameraState>) => {
     const current = get().camera;
     const updated = { ...current, ...camera };
     set({ camera: updated });
-    
+
     const username = get().username;
     if (username) {
       saveSettings(username, {
@@ -198,8 +259,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       });
     }
   },
-  
-  setDebugSettings: (settings: Partial<GameState['debugSettings']>) => {
+
+  setDebugSettings: (settings: Partial<GameState["debugSettings"]>) => {
     const current = get().debugSettings;
     const updated = { ...current, ...settings };
     set({ debugSettings: updated });
@@ -208,8 +269,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       saveSettings(username, { debugSettings: updated });
     }
   },
-  
-  setPerformanceSettings: (settings: Partial<GameState['performanceSettings']>) => {
+
+  setPerformanceSettings: (
+    settings: Partial<GameState["performanceSettings"]>,
+  ) => {
     const current = get().performanceSettings;
     const updated = { ...current, ...settings };
     set({ performanceSettings: updated });
@@ -218,19 +281,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       saveSettings(username, { performanceSettings: updated });
     }
   },
-  
-  setUiTab: (tab: 'inventory' | 'skills' | 'equipment') => {
+
+  setUiTab: (tab: "inventory" | "skills" | "equipment") => {
     set({ uiTab: tab });
     const username = get().username;
     if (username) {
       saveSettings(username, { uiTab: tab });
     }
   },
-  
+
   loadClientSettings: async () => {
     const username = get().username;
     if (!username) return;
-    
+
     const settings = await loadSettings(username);
     set({
       camera: {
@@ -246,26 +309,29 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setRunState: (isRunning, runEnergy) => set({ isRunning, runEnergy }),
-  
-  toggleRun: () => set((state) => {
-    if (state.runEnergy <= 0) {
-      return { isRunning: false };
-    }
-    return { isRunning: !state.isRunning };
-  }),
+
+  toggleRun: () =>
+    set((state) => {
+      if (state.runEnergy <= 0) {
+        return { isRunning: false };
+      }
+      return { isRunning: !state.isRunning };
+    }),
 
   addXp: (skill, amount) => {
     const currentXp = get().xp[skill];
     const currentLevel = xpToLevel(currentXp);
     const newXp = currentXp + amount;
     const newLevel = xpToLevel(newXp);
-    
+
     set((state) => ({
       xp: { ...state.xp, [skill]: newXp },
     }));
-    
+
     if (newLevel > currentLevel) {
-      get().addChatMessage(`Congratulations! Your ${SKILLS_CONFIG[skill].name} level is now ${newLevel}.`);
+      get().addChatMessage(
+        `Congratulations! Your ${SKILLS_CONFIG[skill].name} level is now ${newLevel}.`,
+      );
       return newLevel;
     }
     return 0;
@@ -274,9 +340,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   addToInventory: (itemId, qty) => {
     const inv = [...get().inventory];
     const item = ITEMS[itemId];
-    
+
     if (!item) return false;
-    
+
     if (item.stackable) {
       const existingSlot = inv.find((slot) => slot?.id === itemId);
       if (existingSlot) {
@@ -285,13 +351,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         return true;
       }
     }
-    
+
     const emptySlot = inv.findIndex((slot) => slot === null);
     if (emptySlot === -1) {
-      get().addChatMessage('Your inventory is full!');
+      get().addChatMessage("Your inventory is full!");
       return false;
     }
-    
+
     inv[emptySlot] = { id: itemId, qty };
     set({ inventory: inv });
     return true;
@@ -300,17 +366,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   removeFromInventory: (itemId, qty) => {
     const inv = [...get().inventory];
     const slotIndex = inv.findIndex((slot) => slot?.id === itemId);
-    
+
     if (slotIndex === -1) return false;
-    
+
     const slot = inv[slotIndex]!;
     if (slot.qty < qty) return false;
-    
+
     slot.qty -= qty;
     if (slot.qty <= 0) {
       inv[slotIndex] = null;
     }
-    
+
     set({ inventory: inv });
     return true;
   },
@@ -319,79 +385,102 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   hasTool: (toolType, minTier) => {
     const { inventory, equipment } = get();
-    
+
     const mainHand = equipment.mainHand;
-    if (mainHand && getToolType(mainHand) === toolType && getToolTier(mainHand) >= minTier) {
+    if (
+      mainHand &&
+      getToolType(mainHand) === toolType &&
+      getToolTier(mainHand) >= minTier
+    ) {
       return true;
     }
-    
+
     for (const slot of inventory) {
-      if (slot && getToolType(slot.id) === toolType && getToolTier(slot.id) >= minTier) {
+      if (
+        slot &&
+        getToolType(slot.id) === toolType &&
+        getToolTier(slot.id) >= minTier
+      ) {
         return true;
       }
     }
-    
+
     return false;
   },
 
   canInteractWith: (objectId) => {
     const { position } = get();
     const objectDef = OBJECTS[objectId];
-    
+
     if (!objectDef) {
-      return { valid: false, reason: 'Unknown object' };
+      return { valid: false, reason: "Unknown object" };
     }
-    
+
     const worldObj = get().worldObjects.find(
-      (o) => o.definitionId === objectId && o.position.x === position.x && o.position.y === position.y
+      (o) =>
+        o.definitionId === objectId &&
+        o.position.x === position.x &&
+        o.position.y === position.y,
     );
-    
-    if (worldObj && worldObj.status === 'depleted') {
-      return { valid: false, reason: 'This resource is depleted' };
+
+    if (worldObj && worldObj.status === "depleted") {
+      return { valid: false, reason: "This resource is depleted" };
     }
-    
-    const level = get().getLevel(objectDef.toolRequired === 'pickaxe' ? 'mining' : 'woodcutting');
+
+    const level = get().getLevel(
+      objectDef.toolRequired === "pickaxe" ? "mining" : "woodcutting",
+    );
     if (level < objectDef.levelReq) {
-      return { valid: false, reason: `You need ${objectDef.toolRequired} level ${objectDef.levelReq}` };
+      return {
+        valid: false,
+        reason: `You need ${objectDef.toolRequired} level ${objectDef.levelReq}`,
+      };
     }
-    
+
     if (!get().hasTool(objectDef.toolRequired, 1)) {
-      return { valid: false, reason: `You need a ${objectDef.toolRequired} to harvest this` };
+      return {
+        valid: false,
+        reason: `You need a ${objectDef.toolRequired} to harvest this`,
+      };
     }
-    
+
     return { valid: true };
   },
 
   startHarvest: (objectId) => {
     const { position, worldObjects, currentAction } = get();
     const objectDef = OBJECTS[objectId];
-    
+
     if (!objectDef) return false;
-    
+
     const targetObj = worldObjects.find(
-      (o) => o.definitionId === objectId && 
-             Math.abs(o.position.x - position.x) + Math.abs(o.position.y - position.y) === 1
+      (o) =>
+        o.definitionId === objectId &&
+        Math.abs(o.position.x - position.x) +
+          Math.abs(o.position.y - position.y) ===
+          1,
     );
-    
+
     if (!targetObj) {
-      get().addChatMessage('You need to get closer to harvest this.');
+      get().addChatMessage("You need to get closer to harvest this.");
       return false;
     }
-    
-    if (targetObj.status === 'depleted') {
-      get().addChatMessage('This resource is depleted and waiting to respawn.');
+
+    if (targetObj.status === "depleted") {
+      get().addChatMessage("This resource is depleted and waiting to respawn.");
       return false;
     }
-    
+
     if (currentAction) {
-      get().addChatMessage('You are already doing something!');
+      get().addChatMessage("You are already doing something!");
       return false;
     }
-    
-    const skill = objectDef.toolRequired === 'pickaxe' ? 'mining' : 'woodcutting';
-    
+
+    const skill =
+      objectDef.toolRequired === "pickaxe" ? "mining" : "woodcutting";
+
     const action: PlayerAction = {
-      type: 'harvest',
+      type: "harvest",
       targetPosition: targetObj.position,
       targetObjectId: objectId,
       ticksRemaining: objectDef.depletionTicks,
@@ -399,78 +488,74 @@ export const useGameStore = create<GameState>((set, get) => ({
       xpReward: objectDef.xpGranted,
       itemReward: { id: objectDef.resourceGiven, qty: objectDef.resourceQty },
     };
-    
+
     set({ currentAction: action });
-    get().addChatMessage(`You swing your ${objectDef.toolRequired} at the ${objectDef.name}...`);
+    get().addChatMessage(
+      `You swing your ${objectDef.toolRequired} at the ${objectDef.name}...`,
+    );
     return true;
   },
 
   setAction: (action) => set({ currentAction: action }),
-  
+
   tickAction: () => {
     const { currentAction, worldObjects } = get();
     if (!currentAction) return;
-    
-    if (currentAction.type === 'harvest' && currentAction.targetObjectId) {
+
+    if (currentAction.type === "harvest" && currentAction.targetObjectId) {
       const objIndex = worldObjects.findIndex(
-        (o) => o.definitionId === currentAction.targetObjectId &&
-               o.position.x === currentAction.targetPosition?.x &&
-               o.position.y === currentAction.targetPosition?.y
+        (o) =>
+          o.definitionId === currentAction.targetObjectId &&
+          o.position.x === currentAction.targetPosition?.x &&
+          o.position.y === currentAction.targetPosition?.y,
       );
-      
+
       if (objIndex !== -1) {
         const obj = worldObjects[objIndex];
         const objDef = OBJECTS[currentAction.targetObjectId];
-        
-        if (obj.status === 'depleted') {
+
+        if (obj.status === "depleted") {
           const newObjects = [...worldObjects];
           newObjects[objIndex] = {
             ...obj,
             ticksUntilRespawn: obj.ticksUntilRespawn - 1,
           };
-          
+
           if (newObjects[objIndex].ticksUntilRespawn <= 0) {
             newObjects[objIndex] = {
               ...newObjects[objIndex],
-              status: 'active',
+              status: "active",
               ticksUntilRespawn: 0,
             };
             get().addChatMessage(`The ${objDef.name} has respawned.`);
           }
-          
+
           set({ worldObjects: newObjects, currentAction: null });
           return;
         }
-        
-        const progress = ((objDef.depletionTicks - currentAction.ticksRemaining + 1) / objDef.depletionTicks) * 100;
-        
+
+        const progress =
+          ((objDef.depletionTicks - currentAction.ticksRemaining + 1) /
+            objDef.depletionTicks) *
+          100;
+
         if (currentAction.ticksRemaining <= 1) {
-          if (currentAction.xpReward) {
-            get().addXp(currentAction.skill!, currentAction.xpReward);
-          }
-          if (currentAction.itemReward) {
-            get().addToInventory(currentAction.itemReward.id, currentAction.itemReward.qty);
-            get().addChatMessage(`You get ${currentAction.itemReward.qty} ${ITEMS[currentAction.itemReward.id].name}.`);
-          }
-          
-          const newObjects = [...worldObjects];
-          newObjects[objIndex] = {
-            ...obj,
-            status: 'depleted',
-            ticksUntilRespawn: objDef.respawnTicks,
-            harvestProgress: 0,
-          };
-          
-          set({ currentAction: null, worldObjects: newObjects });
+          // Client-side prediction ends.
+          // We rely on server for rewards (xp, inventory) and world state updates.
+          // Just clear the action.
+          set({ currentAction: null });
         } else {
           const newObjects = [...worldObjects];
           newObjects[objIndex] = {
             ...obj,
             harvestProgress: progress,
           };
-          set({ 
-            currentAction: { ...currentAction, ticksRemaining: currentAction.ticksRemaining - 1 },
-            worldObjects: newObjects 
+          set({
+            currentAction: {
+              ...currentAction,
+              ticksRemaining: currentAction.ticksRemaining - 1,
+            },
+            worldObjects: newObjects,
           });
         }
       }
@@ -482,9 +567,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       chatLog: [...state.chatLog.slice(-49), msg],
     }));
   },
-  
+
   clearChatLog: () => set({ chatLog: [] }),
-  
+
   loadFromDb: (data) => {
     set({
       xp: data.xp,
@@ -494,6 +579,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       isLoaded: true,
     });
   },
-  
+
   setLoaded: (loaded) => set({ isLoaded: loaded }),
 }));
