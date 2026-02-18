@@ -1,6 +1,5 @@
 import { playerManager } from '../players';
 import { world } from '../world';
-import { WORLD_SIZE } from '../config';
 import { Pathfinder } from '../pathfinder';
 
 const playerPaths: Map<string, PathStep[]> = new Map();
@@ -15,7 +14,7 @@ export interface PathStep {
 }
 
 export function isValidPosition(x: number, y: number): boolean {
-  return x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE;
+  return x >= 0 && x < world.getWidth() && y >= 0 && y < world.getHeight();
 }
 
 export function calculatePath(playerId: string, startX: number, startY: number, targetX: number, targetY: number): PathStep[] {

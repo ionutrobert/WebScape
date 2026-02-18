@@ -16,6 +16,13 @@ export const playerManager = {
       y,
       facing: 'south',
       inventory: {},
+      skills: {
+        attack: 1,
+        strength: 1,
+        defense: 1,
+        mining: 1,
+        woodcutting: 1,
+      },
     };
     players.set(id, player);
     return player;
@@ -83,5 +90,22 @@ export const playerManager = {
     const player = players.get(id);
     if (!player || player.targetX === undefined || player.targetY === undefined) return null;
     return { x: player.targetX, y: player.targetY };
+  },
+
+  addXp: (id: string, skill: string, xp: number): void => {
+    const player = players.get(id);
+    if (player) {
+      player.skills[skill] = (player.skills[skill] || 1);
+    }
+  },
+
+  getSkillLevel: (id: string, skill: string): number => {
+    const player = players.get(id);
+    return player?.skills[skill] || 1;
+  },
+
+  getSkills: (id: string): Record<string, number> => {
+    const player = players.get(id);
+    return player?.skills || {};
   },
 };

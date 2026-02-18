@@ -7,10 +7,10 @@ import { WorldObjectState } from '@/shared/types';
 import { OBJECTS } from '@/data/objects';
 import { LocalPlayer, RemotePlayer } from './players';
 
-const CHUNK_SIZE = 16;
-const VIEW_DISTANCE = 12;
-const FOG_START = 8;
-const FOG_END = 12;
+const CHUNK_SIZE = 32;
+const VIEW_DISTANCE = 14;
+const FOG_START = 10;
+const FOG_END = 14;
 
 interface ServerPlayer {
   id: string;

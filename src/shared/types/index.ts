@@ -3,6 +3,7 @@ export type ToolType = 'pickaxe' | 'axe' | 'none';
 export interface ItemDefinition {
   id: string;
   name: string;
+  description?: string;
   stackable: boolean;
   tradable: boolean;
   droppable: boolean;
@@ -10,6 +11,13 @@ export interface ItemDefinition {
   toolType?: ToolType;
   toolTier?: number;
   icon?: string;
+  requirements?: {
+    mining?: number;
+    woodcutting?: number;
+    attack?: number;
+    strength?: number;
+    defense?: number;
+  };
 }
 
 export type TileType = 'grass' | 'dirt' | 'water' | 'sand' | 'stone' | 'snow' | 'cave' | 'dungeon';
@@ -31,6 +39,7 @@ export interface ObjectDefinition {
   id: string;
   name: string;
   type: WorldObjectType;
+  skillType?: 'mining' | 'woodcutting';
   interactionDistance?: number;
   levelReq?: number;
   xpGranted?: number;
@@ -39,6 +48,8 @@ export interface ObjectDefinition {
   resourceQty?: number;
   depletionTicks?: number;
   respawnTicks?: number;
+  miningTicks?: number;
+  choppingTicks?: number;
   activeModel: string;
   depletedModel?: string;
 }

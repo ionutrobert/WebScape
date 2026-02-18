@@ -10,19 +10,28 @@ const WORLD_SIZE = 100;
 
 const TILE_TYPES = ['grass', 'sand', 'stone', 'water', 'snow'];
 
-const RESOURCES = [
-  { id: 'copper_rock', weight: 30 },
-  { id: 'tin_rock', weight: 25 },
-  { id: 'iron_rock', weight: 20 },
-  { id: 'coal_rock', weight: 15 },
-  { id: 'gold_rock', weight: 10 },
+// OSRS Mining Rocks - sorted by level requirement
+const ROCKS = [
+  { id: 'copper_rock', weight: 30 },    // Level 1
+  { id: 'tin_rock', weight: 25 },       // Level 1
+  { id: 'iron_rock', weight: 20 },       // Level 15
+  { id: 'silver_rock', weight: 15 },     // Level 20
+  { id: 'coal_rock', weight: 15 },      // Level 30
+  { id: 'gold_rock', weight: 10 },       // Level 40
+  { id: 'mithril_rock', weight: 8 },      // Level 55
+  { id: 'adamant_rock', weight: 5 },     // Level 70
+  { id: 'rune_rock', weight: 3 },        // Level 85
 ];
 
+// OSRS Trees - sorted by level requirement
 const TREES = [
-  { id: 'oak_tree', weight: 40 },
-  { id: 'willow_tree', weight: 30 },
-  { id: 'maple_tree', weight: 20 },
-  { id: 'decorative_tree', weight: 10 },
+  { id: 'tree', weight: 25 },           // Level 1 - Regular tree
+  { id: 'oak_tree', weight: 25 },       // Level 15
+  { id: 'willow_tree', weight: 20 },    // Level 30
+  { id: 'maple_tree', weight: 15 },     // Level 45
+  { id: 'yew_tree', weight: 10 },        // Level 60
+  { id: 'magic_tree', weight: 4 },      // Level 75
+  { id: 'redwood_tree', weight: 1 },    // Level 90
 ];
 
 const DECORATIONS = [
@@ -116,8 +125,8 @@ async function generateWorld() {
     occupied.add(key);
     
     if (spot.type === 'rock') {
-      const rocks = RESOURCES.map(r => r.id);
-      const weights = RESOURCES.map(r => r.weight);
+      const rocks = ROCKS.map(r => r.id);
+      const weights = ROCKS.map(r => r.weight);
       objects.push({
         x: spot.x,
         y: spot.y,
@@ -187,7 +196,7 @@ async function generateWorld() {
   const rockCounts = await db.worldObject.groupBy({
     by: ['definitionId'],
     _count: { definitionId: true },
-    where: { definitionId: { in: RESOURCES.map(r => r.id) } },
+    where: { definitionId: { in: ROCKS.map(r => r.id) } },
   });
   console.log('\nResources:');
   for (const rc of rockCounts) {

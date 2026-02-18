@@ -3,12 +3,10 @@
 import { useGameStore } from '@/client/stores/gameStore';
 import { useEffect, useRef } from 'react';
 
-const WORLD_SIZE = 20;
 const MINIMAP_SIZE = 196;
-const CELL_SIZE = MINIMAP_SIZE / WORLD_SIZE;
 
 export function Minimap() {
-  const { position, worldObjects, players } = useGameStore();
+  const { position, worldObjects, players, worldWidth, worldHeight } = useGameStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -18,6 +16,8 @@ export function Minimap() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const CELL_SIZE = MINIMAP_SIZE / Math.max(worldWidth, worldHeight);
+
     // Clear with parchment color
     ctx.fillStyle = '#c9b896';
     ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
@@ -25,7 +25,7 @@ export function Minimap() {
     // Draw grid
     ctx.strokeStyle = '#a89878';
     ctx.lineWidth = 0.5;
-    for (let i = 0; i <= WORLD_SIZE; i++) {
+    for (let i = 0; i <= worldWidth; i++) {
       ctx.beginPath();
       ctx.moveTo(i * CELL_SIZE, 0);
       ctx.lineTo(i * CELL_SIZE, MINIMAP_SIZE);
@@ -78,7 +78,7 @@ export function Minimap() {
     ctx.lineTo(px, py - 6);
     ctx.stroke();
 
-  }, [position, worldObjects, players]);
+  }, [position, worldObjects, players, worldWidth, worldHeight]);
 
   return (
     <div className="w-[196px] h-[196px] bg-[#3e3529] p-[6px] pointer-events-auto">
