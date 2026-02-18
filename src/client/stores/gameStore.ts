@@ -527,14 +527,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     const level = get().getLevel(
       objectDef.toolRequired === "pickaxe" ? "mining" : "woodcutting",
     );
-    if (level < objectDef.levelReq) {
+    if (objectDef.levelReq !== undefined && level < objectDef.levelReq) {
       return {
         valid: false,
         reason: `You need ${objectDef.toolRequired} level ${objectDef.levelReq}`,
       };
     }
 
-    if (!get().hasTool(objectDef.toolRequired, 1)) {
+    if (!get().hasTool(objectDef.toolRequired ?? "axe", 1)) {
       return {
         valid: false,
         reason: `You need a ${objectDef.toolRequired} to harvest this`,
@@ -580,10 +580,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       type: "harvest",
       targetPosition: targetObj.position,
       targetObjectId: objectId,
-      ticksRemaining: objectDef.depletionTicks,
+      progress: 0,
+      ticksRemaining: objectDef.depletionTicks ?? 0,
       skill,
-      xpReward: objectDef.xpGranted,
-      itemReward: { id: objectDef.resourceGiven, qty: objectDef.resourceQty },
+      xpReward: objectDef.xpGranted ?? 0,
+      itemReward: { id: objectDef.resourceGiven ?? "", qty: objectDef.resourceQty ?? 1 },
     };
 
     set({ currentAction: action });
@@ -631,9 +632,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           return;
         }
 
+        const depletionTicks = objDef.depletionTicks ?? 1;
         const progress =
-          ((objDef.depletionTicks - currentAction.ticksRemaining + 1) /
-            objDef.depletionTicks) *
+          ((depletionTicks - currentAction.ticksRemaining + 1) /
+            depletionTicks) *
           100;
 
         if (currentAction.ticksRemaining <= 1) {
