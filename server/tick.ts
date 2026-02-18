@@ -3,6 +3,8 @@ import { playerManager } from "./players";
 import { world } from "./world";
 import { processMovement } from "./actions/movement";
 import { processHarvests, getActiveHarvests } from "./actions/harvest";
+import { processCooking, getActiveCookings, COOKING_CONFIG } from "./actions/cooking";
+import { processCombatTicks } from "./actions/combat";
 import { OBJECTS_CONFIG } from "./config";
 
 let io: Server;
@@ -25,7 +27,38 @@ export function tick() {
   lastTickStartTime = Date.now();
   const tickStartTime = lastTickStartTime;
 
+  processCombatTicks();
+
   const { completed, successes } = processHarvests();
+
+  const { cooked, burnt } = processCooking();
+
+  for (const cooking of cooked) {
+    const config = COOKING_CONFIG[cooking.itemId];
+    io.to(cooking.playerId).emit(
+      "inventory-update",
+      playerManager.getInventory(cooking.playerId),
+    );
+    io.to(cooking.playerId).emit("chat", {
+      message: "You successfully cook the fish!",
+      type: "system",
+    });
+    io.to(cooking.playerId).emit("xp-gain", {
+      skill: "cooking",
+      amount: config?.xp || 0,
+    });
+  }
+
+  for (const burn of burnt) {
+    io.to(burn.playerId).emit(
+      "inventory-update",
+      playerManager.getInventory(burn.playerId),
+    );
+    io.to(burn.playerId).emit("chat", {
+      message: "You accidentally burn the fish!",
+      type: "system",
+    });
+  }
 
   for (const harvest of successes) {
     const config = OBJECTS_CONFIG[harvest.objectId];
@@ -36,6 +69,10 @@ export function tick() {
     io.to(harvest.playerId).emit("chat", {
       message: `You get ${config.resource}.`,
       type: "system",
+    });
+    io.to(harvest.playerId).emit("xp-gain", {
+      skill: config.skillType || "mining",
+      amount: config.xp,
     });
   }
 

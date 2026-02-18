@@ -6,12 +6,38 @@ export interface Player {
   facing: string;
   inventory: Record<string, number>;
   skills: Record<string, number>;
+  skillXp: Record<string, number>;
+  combatStats: {
+    attack: number;
+    strength: number;
+    defense: number;
+    ranged: number;
+    magic: number;
+  };
   equipment?: {
     mainHand?: string;
     chest?: string;
     legs?: string;
     helm?: string;
     cape?: string;
+    offHand?: string;
+    ammo?: string;
+  };
+  equipmentBonuses?: {
+    attackStab: number;
+    attackSlash: number;
+    attackCrush: number;
+    attackRanged: number;
+    attackMagic: number;
+    defenseStab: number;
+    defenseSlash: number;
+    defenseCrush: number;
+    defenseRanged: number;
+    defenseMagic: number;
+    strength: number;
+    rangedStrength: number;
+    magicDamage: number;
+    prayer: number;
   };
   targetX?: number;
   targetY?: number;
@@ -22,6 +48,22 @@ export interface Player {
   godMode?: boolean;
   runEnergy: number;
   isRunning: boolean;
+  combat?: {
+    attackCooldown: number;
+    autoRetaliate: boolean;
+    inCombat: boolean;
+    combatTarget?: string;
+    combatTicksRemaining: number;
+  };
+}
+
+export interface CombatState {
+  attackerId: string;
+  defenderId: string;
+  weaponId: string;
+  attackStyle: "accurate" | "aggressive" | "defensive";
+  ticksRemaining: number;
+  combatType: "melee" | "ranged" | "magic";
 }
 
 export interface WorldObject {
@@ -47,12 +89,13 @@ export interface ServerConfig {
   depletionTicks: number;
   miningTicks?: number;
   choppingTicks?: number;
+  fishingTicks?: number;
   toolRequired: string;
   xp: number;
   resource: string;
   resourceQty?: number;
   levelReq: number;
-  skillType?: 'mining' | 'woodcutting';
+  skillType?: 'mining' | 'woodcutting' | 'fishing';
 }
 
 export interface GatheringMultipliers {

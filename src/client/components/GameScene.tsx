@@ -4,6 +4,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { World } from "./World";
+import { XpDropManager } from "./ui/XpDrop";
 import { useGameStore } from "@/client/stores/gameStore";
 import { Socket } from "socket.io-client";
 import * as THREE from "three";
@@ -237,6 +238,7 @@ export function GameScene({ onMove, onHarvest, players }: GameSceneProps) {
           onMove={onMove}
           onHarvest={onHarvest}
         />
+        <XpDropManager />
       </Suspense>
 
       <CameraController />

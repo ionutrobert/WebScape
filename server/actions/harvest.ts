@@ -39,6 +39,16 @@ function calculateWoodcuttingChance(
   return Math.min(0.95, baseChance + tierBonus);
 }
 
+function calculateFishingChance(
+  skillLevel: number,
+  toolTier: number,
+  objectLevelReq: number,
+): number {
+  const baseChance = getBaseSuccessChance(skillLevel, objectLevelReq);
+  const tierBonus = toolTier * 0.03;
+  return Math.min(0.95, baseChance + tierBonus);
+}
+
 export function startHarvest(
   playerId: string,
   x: number,
@@ -150,12 +160,20 @@ export function processHarvests(): {
           harvest.toolTier || 0,
           config.levelReq,
         );
-      } else {
+      } else if (skillType === "woodcutting") {
         successChance = calculateWoodcuttingChance(
           skillLevel,
           harvest.toolTier || 0,
           config.levelReq,
         );
+      } else if (skillType === "fishing") {
+        successChance = calculateFishingChance(
+          skillLevel,
+          harvest.toolTier || 0,
+          config.levelReq,
+        );
+      } else {
+        successChance = 0.5;
       }
 
       const roll = Math.random();
@@ -188,4 +206,9 @@ export function processHarvests(): {
 
 export function getActiveHarvests(): Map<string, ActiveHarvest> {
   return activeHarvests;
+}
+
+export function clearPlayerHarvest(playerId: string): void {
+  const key = `harvest-${playerId}`;
+  activeHarvests.delete(key);
 }

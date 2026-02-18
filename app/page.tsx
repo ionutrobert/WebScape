@@ -11,6 +11,8 @@ import {
 } from "@/shared/types";
 import { GameLoop } from "@/client/components/GameLoop";
 import { GameScene } from "@/client/components/GameScene";
+import { XpDropManager } from "@/client/components/ui/XpDrop";
+import { ClickFeedback } from "@/client/components/ui/ClickFeedback";
 import { GAME_NAME } from "@/data/game";
 import { OBJECTS } from "@/data/objects";
 import { io, Socket } from "socket.io-client";
@@ -93,27 +95,75 @@ export default function GamePage() {
     position,
     runEnergy,
     isRunning,
+    isMoving,
     setRunState,
     toggleRun,
   } = useGameStore();
 
-  // Update tick progress every 50ms
+  const [fillProgress, setFillProgress] = useState(0);
+  const [displayEnergy, setDisplayEnergy] = useState(100);
+  const fillStartTime = useRef<number | null>(null);
+  const lastRunEnergy = useRef(runEnergy);
+  const currentDisplayEnergy = useRef(displayEnergy);
+  const animationFrameRef = useRef<number | null>(null);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      const store = useGameStore.getState();
-      const ts = store.tickStartTime;
-      const td = store.tickDuration;
-      if (ts > 0) {
-        const elapsed = Date.now() - ts;
-        const progress = Math.max(
-          0,
-          Math.min(100, ((elapsed % td) / td) * 100),
-        );
-        setTickProgress(progress);
+    currentDisplayEnergy.current = displayEnergy;
+  }, [displayEnergy]);
+
+  useEffect(() => {
+    if (runEnergy !== lastRunEnergy.current) {
+      setDisplayEnergy(runEnergy);
+      lastRunEnergy.current = runEnergy;
+      setFillProgress(0);
+      fillStartTime.current = null;
+    }
+  }, [runEnergy]);
+
+  useEffect(() => {
+    if (isMoving) {
+      setFillProgress(0);
+      fillStartTime.current = null;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
+      return;
+    }
+
+    if (currentDisplayEnergy.current >= 100) {
+      setFillProgress(0);
+      fillStartTime.current = null;
+      return;
+    }
+
+    if (fillStartTime.current === null) {
+      fillStartTime.current = performance.now();
+    }
+
+    const animate = () => {
+      if (fillStartTime.current === null) return;
+      
+      const elapsed = performance.now() - fillStartTime.current;
+      const newProgress = Math.min(100, (elapsed / 1200) * 100);
+      setFillProgress(newProgress);
+
+      if (newProgress >= 100) {
+        setDisplayEnergy((prev) => Math.min(100, prev + 1));
+        fillStartTime.current = performance.now();
+        setFillProgress(0);
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isMoving]);
 
   useEffect(() => {
     setMounted(true);
@@ -124,6 +174,14 @@ export default function GamePage() {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatLog]);
+
+  useEffect(() => {
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [socket]);
 
   const handleLogin = () => {
     if (!username.trim() || isLoggingIn) return;
@@ -160,11 +218,28 @@ export default function GamePage() {
         useGameStore.getState().tickStartTime = data.tickStartTime;
         useGameStore.getState().tickDuration = data.tickDuration;
 
-        setInventory(Array(28).fill(null));
+        if (data.inventory) {
+          const inventory: { id: string; qty: number }[] = Array(28).fill(null);
+          let slotIndex = 0;
+          for (const [itemId, quantity] of Object.entries(data.inventory)) {
+            if (slotIndex < 28 && quantity > 0) {
+              inventory[slotIndex] = { id: itemId, qty: quantity as number };
+              slotIndex++;
+            }
+          }
+          setInventory(inventory);
+        } else {
+          setInventory(Array(28).fill(null));
+        }
+
+        if (data.skillXp) {
+          useGameStore.getState().setXp(data.skillXp as any);
+        }
+
         setIsLoggingIn(false);
         setSocket(newSocket);
         setLoaded(true);
-        addChatMessage(`Welcome to ${GAME_NAME}, ${username}!`);
+        addChatMessage(`Welcome to ${GAME_NAME}, ${username}! Click to move, R to toggle run.`);
 
         await loadClientSettings();
       },
@@ -271,6 +346,10 @@ export default function GamePage() {
     newSocket.on("collision-update", (map: boolean[][]) => {
       setCollisionMap(map);
     });
+
+    newSocket.on("xp-gain", (data: { skill: string; amount: number }) => {
+      useGameStore.getState().addXpDrop(data.skill as any, data.amount, position.x, position.y);
+    });
   };
 
   const handleSendChat = (e: React.FormEvent) => {
@@ -281,12 +360,18 @@ export default function GamePage() {
     }
   };
 
-  const handleMove = (x: number, y: number) => {
+  const handleMove = (x: number, y: number, screenX?: number, screenY?: number) => {
+    if (screenX !== undefined && screenY !== undefined) {
+      useGameStore.getState().addClickFeedback("move", screenX, screenY);
+    }
     setTargetDestination({ x, y });
     socket?.emit("move-to", { x, y });
   };
 
-  const handleHarvest = (x: number, y: number, objectId: string) => {
+  const handleHarvest = (x: number, y: number, objectId: string, screenX?: number, screenY?: number) => {
+    if (screenX !== undefined && screenY !== undefined) {
+      useGameStore.getState().addClickFeedback("action", screenX, screenY);
+    }
     socket?.emit("harvest", { x, y, objectId });
   };
 
@@ -345,6 +430,7 @@ export default function GamePage() {
       <GameLoop />
 
       <div className="flex-1 relative">
+        <ClickFeedback />
         <GameScene
           onMove={handleMove}
           onHarvest={handleHarvest}
@@ -407,14 +493,14 @@ export default function GamePage() {
                 cy="16"
                 r="14"
                 fill="none"
-                stroke={runEnergy > 0 ? "#22c55e" : "#78716c"}
+                stroke={isMoving || displayEnergy >= 100 ? (displayEnergy > 0 ? "#22c55e" : "#78716c") : "#78716c"}
                 strokeWidth="3"
-                strokeDasharray={`${(runEnergy / 100) * 87.96} 87.96`}
+                strokeDasharray={`${(isMoving ? runEnergy : (displayEnergy >= 100 ? 100 : fillProgress)) / 100 * 87.96} 87.96`}
                 transform="rotate(-90 16 16)"
               />
             </svg>
             <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-stone-300">
-              {Math.round(runEnergy)}
+              {Math.round(isMoving ? runEnergy : displayEnergy)}
             </span>
           </div>
           <div className="flex-1 text-left">

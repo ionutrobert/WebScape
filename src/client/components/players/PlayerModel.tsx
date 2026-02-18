@@ -67,6 +67,7 @@ export function PlayerModel({
     breathePhase: 0,
     prevMovementProgress: 0,
     lastMoveTime: 0,
+    amplitude: 0,
   });
   const legLeftGroupRef = useRef<THREE.Group>(null);
   const legRightGroupRef = useRef<THREE.Group>(null);
@@ -95,7 +96,15 @@ export function PlayerModel({
     const isGracePeriod = !isMoving && timeSinceMove < 100;
     const isCurrentlyMoving = (isMoving && progress < 1) || isGracePeriod;
 
+    // Smooth amplitude transition for walk-to-idle transition
+    const transitionSpeed = 8;
     if (isCurrentlyMoving) {
+      anim.amplitude = Math.min(anim.amplitude + delta * transitionSpeed, 1);
+    } else {
+      anim.amplitude = Math.max(anim.amplitude - delta * transitionSpeed, 0);
+    }
+
+    if (anim.amplitude > 0.01) {
       let deltaProgress: number;
 
       if (isGracePeriod) {
@@ -122,25 +131,24 @@ export function PlayerModel({
       const maxArmAngle = isRunning ? 0.6 : 0.4;
 
       if (legLeftGroupRef.current && legRightGroupRef.current) {
-        legLeftGroupRef.current.rotation.x = Math.sin(walkPhase) * maxLegAngle;
+        legLeftGroupRef.current.rotation.x = Math.sin(walkPhase) * maxLegAngle * anim.amplitude;
         legRightGroupRef.current.rotation.x =
-          Math.sin(walkPhase + Math.PI) * maxLegAngle;
+          Math.sin(walkPhase + Math.PI) * maxLegAngle * anim.amplitude;
       }
 
       if (armLeftGroupRef.current && armRightGroupRef.current) {
-        armLeftGroupRef.current.rotation.x = -Math.sin(walkPhase) * maxArmAngle;
+        armLeftGroupRef.current.rotation.x = -Math.sin(walkPhase) * maxArmAngle * anim.amplitude;
         armRightGroupRef.current.rotation.x =
-          -Math.sin(walkPhase + Math.PI) * maxArmAngle;
+          -Math.sin(walkPhase + Math.PI) * maxArmAngle * anim.amplitude;
       }
 
       const bobAmount = isRunning ? 0.08 : 0.05;
-      const bob = Math.abs(Math.sin(walkPhase)) * bobAmount;
-      groupRef.current.position.y = 0.5 + bob;
+      const bob = Math.abs(Math.sin(walkPhase)) * bobAmount * anim.amplitude;
+      groupRef.current.position.y = 0.31 + bob;
 
       if (bodyGroupRef.current) bodyGroupRef.current.position.y = 0;
     } else {
       anim.prevMovementProgress = 0;
-      anim.walkPhase = 0;
       anim.breathePhase += delta * 2;
 
       const breathe = Math.sin(anim.breathePhase);
@@ -166,7 +174,7 @@ export function PlayerModel({
       if (bodyGroupRef.current)
         bodyGroupRef.current.position.y = breathe * 0.02;
 
-      groupRef.current.position.y = 0.5;
+      groupRef.current.position.y = 0.31;
     }
   });
 
@@ -182,7 +190,7 @@ export function PlayerModel({
     : null;
 
   return (
-    <group ref={groupRef} position={[x, 0.5, y]}>
+    <group ref={groupRef} position={[x, 0.31, y]}>
       {/* Body group for breathing animation */}
       <group ref={bodyGroupRef}>
         {/* Body - torso */}

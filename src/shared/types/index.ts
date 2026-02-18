@@ -1,4 +1,4 @@
-export type ToolType = "pickaxe" | "axe" | "none";
+export type ToolType = "pickaxe" | "axe" | "rod" | "harpoon" | "net" | "none";
 
 export interface ItemDefinition {
   id: string;
@@ -14,6 +14,8 @@ export interface ItemDefinition {
   requirements?: {
     mining?: number;
     woodcutting?: number;
+    fishing?: number;
+    cooking?: number;
     attack?: number;
     strength?: number;
     defense?: number;
@@ -47,7 +49,7 @@ export interface ObjectDefinition {
   id: string;
   name: string;
   type: WorldObjectType;
-  skillType?: "mining" | "woodcutting";
+  skillType?: "mining" | "woodcutting" | "fishing";
   interactionDistance?: number;
   levelReq?: number;
   xpGranted?: number;
@@ -58,6 +60,7 @@ export interface ObjectDefinition {
   respawnTicks?: number;
   miningTicks?: number;
   choppingTicks?: number;
+  fishingTicks?: number;
   activeModel: string;
   depletedModel?: string;
 }
@@ -89,7 +92,9 @@ export type SkillKey =
   | "strength"
   | "defense"
   | "mining"
-  | "woodcutting";
+  | "woodcutting"
+  | "fishing"
+  | "cooking";
 
 export interface SkillDefinition {
   key: SkillKey;
@@ -98,6 +103,39 @@ export interface SkillDefinition {
 }
 
 export type ActionType = "harvest" | "move" | "combat";
+
+export interface CombatStats {
+  attack: number;
+  strength: number;
+  defense: number;
+  ranged: number;
+  magic: number;
+}
+
+export type EquipmentSlot = "mainHand" | "chest" | "legs" | "helm" | "cape" | "offHand" | "ammo";
+
+export interface EquipmentBonuses {
+  attackStab: number;
+  attackSlash: number;
+  attackCrush: number;
+  attackRanged: number;
+  attackMagic: number;
+  defenseStab: number;
+  defenseSlash: number;
+  defenseCrush: number;
+  defenseRanged: number;
+  defenseMagic: number;
+  strength: number;
+  rangedStrength: number;
+  magicDamage: number;
+  prayer: number;
+}
+
+export interface WeaponStats {
+  attackSpeed: number;  // ticks per attack
+  weaponType: "stab" | "slash" | "crush" | "ranged" | "magic";
+  damage?: number;
+}
 
 export interface PlayerAction {
   type: ActionType;
@@ -175,4 +213,7 @@ export interface InitData {
   worldWidth: number;
   worldHeight: number;
   isAdmin: boolean;
+  inventory?: Record<string, number>;
+  skills?: Record<string, number>;
+  skillXp?: Record<string, number>;
 }

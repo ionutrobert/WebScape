@@ -5,6 +5,8 @@ import { playerManager, AdminLevel } from "./players";
 import { world, initializeWorld } from "./world";
 import { setMovementTarget } from "./actions/movement";
 import { startHarvest } from "./actions/harvest";
+import { startCooking } from "./actions/cooking";
+import { startAttack, processAttack } from "./actions/combat";
 import {
   initTick,
   startTickLoop,
@@ -67,10 +69,27 @@ io.on("connection", (socket) => {
   console.log("Connection:", socket.id);
 
   socket.on("join", async (username: string) => {
+    const existingPlayers = playerManager.getAll();
+    const existingPlayer = existingPlayers.find(p => p.username.toLowerCase() === username.toLowerCase());
+    if (existingPlayer) {
+      io.to(existingPlayer.id).emit("chat", { message: "You have been disconnected due to another login.", type: "system" });
+      io.to(existingPlayer.id).emit("disconnect");
+      playerManager.remove(existingPlayer.id);
+      console.log(`Disconnected old session for ${username} due to new login`);
+    }
+
     const dbPlayer = await getOrCreatePlayer(username);
 
     const spawnPos = findValidSpawnPosition(dbPlayer.x, dbPlayer.y);
-    playerManager.create(socket.id, username, spawnPos.x, spawnPos.y);
+    const player = playerManager.create(socket.id, username, spawnPos.x, spawnPos.y);
+
+    if (dbPlayer.inventory) {
+      player.inventory = dbPlayer.inventory;
+    }
+    if (dbPlayer.skills) {
+      player.skills = dbPlayer.skills;
+      player.skillXp = { ...dbPlayer.skills };
+    }
 
     const isAdmin = playerManager.isAdmin(username);
 
@@ -85,6 +104,9 @@ io.on("connection", (socket) => {
       worldWidth: world.getWidth(),
       worldHeight: world.getHeight(),
       isAdmin,
+      inventory: player.inventory,
+      skills: player.skills,
+      skillXp: player.skillXp,
     });
 
     socket.broadcast.emit("player-joined", { id: socket.id, username });
@@ -117,6 +139,33 @@ io.on("connection", (socket) => {
         x: data.x,
         y: data.y,
         objectId: data.objectId,
+      });
+    }
+  });
+
+  socket.on("cook", (data: { x: number; y: number; itemId: string }) => {
+    const player = playerManager.get(socket.id);
+    if (!player) return;
+
+    const result = startCooking(socket.id, data.itemId, data.x, data.y);
+    if (!result.valid && result.reason) {
+      socket.emit("chat", { message: result.reason, type: "system" });
+    }
+  });
+
+  socket.on("attack", (data: { targetId: string; style?: "accurate" | "aggressive" | "defensive" }) => {
+    const player = playerManager.get(socket.id);
+    if (!player) return;
+
+    const result = startAttack(socket.id, data.targetId, data.style || "accurate");
+    if (!result.valid && result.reason) {
+      socket.emit("chat", { message: result.reason, type: "system" });
+    } else {
+      const combatResult = processAttack(socket.id, data.targetId, data.style || "accurate", io);
+      socket.emit("combat-result", {
+        hit: combatResult.hit,
+        damage: combatResult.damage,
+        xp: combatResult.xp,
       });
     }
   });
@@ -158,13 +207,19 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     const player = playerManager.get(socket.id);
     if (player) {
-      await savePlayer(player.username, { x: player.x, y: player.y });
+      await savePlayer(player.username, { 
+        x: player.x, 
+        y: player.y,
+        facing: player.facing,
+        inventory: player.inventory,
+        skills: player.skillXp,
+      });
       socket.broadcast.emit("player-left", {
         id: socket.id,
         username: player.username,
       });
       console.log(
-        `${player.username} disconnected, saved position (${player.x}, ${player.y})`,
+        `${player.username} disconnected, saved position (${player.x}, ${player.y}), inventory: ${JSON.stringify(player.inventory)}, skills: ${JSON.stringify(player.skillXp)}`,
       );
     }
     playerManager.remove(socket.id);

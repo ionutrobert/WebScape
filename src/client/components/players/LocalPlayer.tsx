@@ -20,9 +20,10 @@ export function LocalPlayer() {
   const debugSettings = useGameStore((s) => s.debugSettings);
   const isRunning = useGameStore((s) => s.isRunning);
   const currentAction = useGameStore((s) => s.currentAction);
-  const isHarvesting = currentAction?.type === "harvest";
+  const storeIsMoving = useGameStore((s) => s.isMoving);
+  const isHarvesting = currentAction?.type === "harvest" && !storeIsMoving;
 
-  const { x, y, isMoving, movementProgress } = usePositionInterpolation(
+  const { x, y, isMoving: interpIsMoving, movementProgress } = usePositionInterpolation(
     position.x,
     position.y,
     startPosition.x,
@@ -55,7 +56,7 @@ export function LocalPlayer() {
         y={y}
         facing={facing}
         appearance={appearance}
-        isMoving={isMoving}
+        isMoving={interpIsMoving}
         isRunning={isRunning}
         isHarvesting={isHarvesting}
         movementProgress={movementProgress}

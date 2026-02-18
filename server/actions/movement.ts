@@ -1,6 +1,7 @@
 import { playerManager } from '../players';
 import { world } from '../world';
 import { Pathfinder } from '../pathfinder';
+import { clearPlayerHarvest } from './harvest';
 
 const playerPaths: Map<string, PathStep[]> = new Map();
 
@@ -100,6 +101,8 @@ export function setMovementTarget(playerId: string, targetX: number, targetY: nu
   if (!player) {
     return { valid: false, reason: 'Player not found.' };
   }
+
+  clearPlayerHarvest(playerId);
   
   if (world.isBlocked(targetX, targetY)) {
     const targetTile = { x: targetX, y: targetY };

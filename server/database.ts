@@ -62,13 +62,43 @@ export async function loadPlayer(username: string): Promise<PlayerData | null> {
 }
 
 export async function savePlayer(username: string, data: Partial<PlayerData>) {
+  const player = await serverDb.player.findUnique({ where: { username } });
+  if (!player) return;
+
+  const updateData: any = {
+    ...(data.x !== undefined && { x: data.x }),
+    ...(data.y !== undefined && { y: data.y }),
+    ...(data.facing !== undefined && { facing: data.facing }),
+  };
+
+  if (data.skills) {
+    for (const [skill, xp] of Object.entries(data.skills)) {
+      await serverDb.playerSkill.upsert({
+        where: { playerId_skill: { playerId: player.id, skill } },
+        create: { playerId: player.id, skill, xp },
+        update: { xp },
+      });
+    }
+  }
+
+  if (data.inventory) {
+    await serverDb.inventorySlot.deleteMany({ where: { playerId: player.id } });
+    const slots = Object.entries(data.inventory)
+      .filter(([, qty]) => (qty as number) > 0)
+      .map(([itemId, quantity], index) => ({
+        playerId: player.id,
+        slotIndex: index,
+        itemId,
+        quantity: quantity as number,
+      }));
+    if (slots.length > 0) {
+      await serverDb.inventorySlot.createMany({ data: slots });
+    }
+  }
+
   await serverDb.player.update({
     where: { username },
-    data: {
-      ...(data.x !== undefined && { x: data.x }),
-      ...(data.y !== undefined && { y: data.y }),
-      ...(data.facing !== undefined && { facing: data.facing }),
-    },
+    data: updateData,
   });
 }
 
@@ -79,6 +109,8 @@ export async function createPlayer(username: string): Promise<PlayerData> {
     { skill: 'defense', xp: 0 },
     { skill: 'mining', xp: 0 },
     { skill: 'woodcutting', xp: 0 },
+    { skill: 'fishing', xp: 0 },
+    { skill: 'cooking', xp: 0 },
   ];
 
   const player = await serverDb.player.create({

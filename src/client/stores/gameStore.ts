@@ -24,6 +24,30 @@ export interface CameraState {
   distance: number;
 }
 
+export interface XpDrop {
+  id: string;
+  skill: SkillKey;
+  amount: number;
+  x: number;
+  y: number;
+  startTime: number;
+}
+
+export interface ClickFeedback {
+  id: string;
+  type: "move" | "action";
+  screenX: number;
+  screenY: number;
+  startTime: number;
+}
+
+export interface HoverInfo {
+  type: "ground" | "rock" | "tree" | "player" | null;
+  name?: string;
+  x: number;
+  y: number;
+}
+
 interface GameState {
   username: string | null;
   playerId: string | null;
@@ -74,6 +98,18 @@ interface GameState {
   worldHeight: number;
   runEnergy: number;
   isRunning: boolean;
+  xpDrops: XpDrop[];
+  clickFeedbacks: ClickFeedback[];
+  hoverInfo: HoverInfo;
+  setHoverInfo: (info: HoverInfo) => void;
+
+  addXpDrop: (skill: SkillKey, amount: number, x: number, y: number) => void;
+  removeXpDrop: (id: string) => void;
+  cleanupXpDrops: () => void;
+
+  addClickFeedback: (type: "move" | "action", screenX: number, screenY: number) => void;
+  removeClickFeedback: (id: string) => void;
+  cleanupClickFeedbacks: () => void;
 
   setUsername: (name: string) => void;
   setPlayerId: (id: string) => void;
@@ -162,6 +198,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     defense: 0,
     mining: 0,
     woodcutting: 0,
+    fishing: 0,
+    cooking: 0,
   },
   inventory: Array(28).fill(null),
   equipment: {
@@ -192,6 +230,64 @@ export const useGameStore = create<GameState>((set, get) => ({
   worldHeight: 100,
   runEnergy: 100,
   isRunning: false,
+  xpDrops: [],
+  clickFeedbacks: [],
+  hoverInfo: { type: null, x: 0, y: 0 },
+
+  addXpDrop: (skill: SkillKey, amount: number, x: number, y: number) => {
+    const newDrop: XpDrop = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      skill,
+      amount,
+      x,
+      y,
+      startTime: performance.now(),
+    };
+    set((state) => ({
+      xpDrops: [...state.xpDrops, newDrop],
+    }));
+  },
+
+  removeXpDrop: (id: string) => {
+    set((state) => ({
+      xpDrops: state.xpDrops.filter((drop) => drop.id !== id),
+    }));
+  },
+
+  cleanupXpDrops: () => {
+    const now = performance.now();
+    set((state) => ({
+      xpDrops: state.xpDrops.filter((drop) => now - drop.startTime < 2000),
+    }));
+  },
+
+  addClickFeedback: (type: "move" | "action", screenX: number, screenY: number) => {
+    const newFeedback: ClickFeedback = {
+      id: `cf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      screenX,
+      screenY,
+      startTime: performance.now(),
+    };
+    set((state) => ({
+      clickFeedbacks: [...state.clickFeedbacks, newFeedback],
+    }));
+  },
+
+  removeClickFeedback: (id: string) => {
+    set((state) => ({
+      clickFeedbacks: state.clickFeedbacks.filter((fb) => fb.id !== id),
+    }));
+  },
+
+  cleanupClickFeedbacks: () => {
+    const now = performance.now();
+    set((state) => ({
+      clickFeedbacks: state.clickFeedbacks.filter((fb) => now - fb.startTime < 200),
+    }));
+  },
+
+  setHoverInfo: (info: HoverInfo) => set({ hoverInfo: info }),
 
   setUsername: (name) => set({ username: name }),
   setPlayerId: (id) => set({ playerId: id }),
@@ -221,6 +317,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         targetDestination: target,
         isMoving: target !== null,
+        currentAction: target !== null ? null : state.currentAction,
       };
     }),
   setFacing: (facing) => set({ facing }),

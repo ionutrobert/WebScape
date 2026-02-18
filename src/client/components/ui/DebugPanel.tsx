@@ -1,7 +1,7 @@
 'use client';
 
 import { useGameStore } from '@/client/stores/gameStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export function DebugPanel() {
   const debugSettings = useGameStore((s) => s.debugSettings);
@@ -9,25 +9,32 @@ export function DebugPanel() {
   const performanceSettings = useGameStore((s) => s.performanceSettings);
   const setPerformanceSettings = useGameStore((s) => s.setPerformanceSettings);
   const position = useGameStore((s) => s.position);
+  const tickStartTime = useGameStore((s) => s.tickStartTime);
+  const tickDuration = useGameStore((s) => s.tickDuration);
   
-  // Force re-render every 50ms for live tick progress
-  const [tick, setTick] = useState(0);
+  const [tickProgress, setTickProgress] = useState(0);
+  const intervalRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (debugSettings.showTickInfo) {
-      const interval = setInterval(() => setTick((t) => t + 1), 50);
-      return () => clearInterval(interval);
+      intervalRef.current = window.setInterval(() => {
+        const store = useGameStore.getState();
+        const ts = store.tickStartTime;
+        const td = store.tickDuration;
+        if (ts > 0) {
+          const elapsed = Date.now() - ts;
+          const progress = Math.max(0, Math.min(100, (elapsed % td) / td * 100));
+          setTickProgress(progress);
+        }
+      }, 50);
+      return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      };
+    } else {
+      setTickProgress(0);
     }
   }, [debugSettings.showTickInfo]);
-  
-  // Get fresh values directly from store
-  const store = useGameStore.getState();
-  const tickStartTime = store.tickStartTime;
-  const tickDuration = store.tickDuration;
-  
-  // Calculate progress with modulo
-  const elapsed = tickStartTime > 0 ? Date.now() - tickStartTime : 0;
-  const progress = Math.max(0, Math.min(100, (elapsed % tickDuration) / tickDuration * 100));
-  
+
   const hasAnyEnabled = debugSettings.showTrueTile || debugSettings.showTickInfo || debugSettings.showCollisionMap;
   
   return (
@@ -55,10 +62,10 @@ export function DebugPanel() {
             <div className="flex-1 bg-stone-700 rounded h-2 overflow-hidden">
               <div 
                 className="bg-amber-500 h-full"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${tickProgress}%` }}
               />
             </div>
-            <span className="w-10 text-right">{Math.round(progress)}%</span>
+            <span className="w-10 text-right">{Math.round(tickProgress)}%</span>
           </div>
           <div>Duration: {tickDuration}ms</div>
           <div>Visual: ({position.x.toFixed(2)}, {position.y.toFixed(2)})</div>

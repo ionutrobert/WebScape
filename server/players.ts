@@ -2,6 +2,7 @@ import { Player } from './types';
 import { calculateFacing } from './facing';
 import { world } from './world';
 import { Server } from 'socket.io';
+import { WEAPON_CONFIG, ARMOR_CONFIG } from './config';
 
 export type AdminLevel = 'mod' | 'admin' | 'owner';
 
@@ -25,7 +26,10 @@ export const playerManager = {
       x,
       y,
       facing: 'south',
-      inventory: {},
+      inventory: {
+        bronze_pickaxe: 1,
+        bronze_axe: 1,
+      },
       skills: {
         attack: 1,
         strength: 1,
@@ -33,8 +37,30 @@ export const playerManager = {
         mining: 1,
         woodcutting: 1,
       },
+      skillXp: {
+        attack: 0,
+        strength: 0,
+        defense: 0,
+        mining: 0,
+        woodcutting: 0,
+      },
+      combatStats: {
+        attack: 1,
+        strength: 1,
+        defense: 1,
+        ranged: 1,
+        magic: 1,
+      },
       runEnergy: 100,
       isRunning: false,
+      hp: 100,
+      maxHp: 100,
+      combat: {
+        attackCooldown: 0,
+        autoRetaliate: true,
+        inCombat: false,
+        combatTicksRemaining: 0,
+      },
     };
     players.set(id, player);
     return player;
@@ -82,6 +108,21 @@ export const playerManager = {
     }
   },
   
+  removeFromInventory: (id: string, itemId: string, qty: number): boolean => {
+    const player = players.get(id);
+    if (player) {
+      const current = player.inventory[itemId] || 0;
+      if (current >= qty) {
+        player.inventory[itemId] = current - qty;
+        if (player.inventory[itemId] <= 0) {
+          delete player.inventory[itemId];
+        }
+        return true;
+      }
+    }
+    return false;
+  },
+  
   getInventory: (id: string): Record<string, number> => {
     const player = players.get(id);
     return player?.inventory || {};
@@ -107,7 +148,8 @@ export const playerManager = {
   addXp: (id: string, skill: string, xp: number): void => {
     const player = players.get(id);
     if (player) {
-      player.skills[skill] = (player.skills[skill] || 1);
+      if (!player.skillXp) player.skillXp = {};
+      player.skillXp[skill] = (player.skillXp[skill] || 0) + xp;
     }
   },
 
@@ -119,6 +161,11 @@ export const playerManager = {
   getSkills: (id: string): Record<string, number> => {
     const player = players.get(id);
     return player?.skills || {};
+  },
+
+  getSkillXp: (id: string): Record<string, number> => {
+    const player = players.get(id);
+    return player?.skillXp || {};
   },
 
   toggleRun: (id: string): boolean => {
@@ -160,6 +207,149 @@ export const playerManager = {
   isRunning: (id: string): boolean => {
     const player = players.get(id);
     return player?.isRunning ?? false;
+  },
+
+  // Combat methods
+  getCombatStats: (id: string): Player['combatStats'] | undefined => {
+    const player = players.get(id);
+    return player?.combatStats;
+  },
+
+  getHp: (id: string): number => {
+    const player = players.get(id);
+    return player?.hp ?? 100;
+  },
+
+  setHp: (id: string, hp: number): void => {
+    const player = players.get(id);
+    if (player) {
+      player.hp = Math.max(0, Math.min(hp, player.maxHp ?? 100));
+    }
+  },
+
+  damagePlayer: (id: string, amount: number): void => {
+    const player = players.get(id);
+    if (player) {
+      if (player.godMode) return;
+      player.hp = Math.max(0, (player.hp ?? 100) - amount);
+    }
+  },
+
+  isInCombat: (id: string): boolean => {
+    const player = players.get(id);
+    return player?.combat?.inCombat ?? false;
+  },
+
+  setInCombat: (id: string, inCombat: boolean, targetId?: string): void => {
+    const player = players.get(id);
+    if (player?.combat) {
+      player.combat.inCombat = inCombat;
+      player.combat.combatTarget = targetId;
+    }
+  },
+
+  getAttackCooldown: (id: string): number => {
+    const player = players.get(id);
+    return player?.combat?.attackCooldown ?? 0;
+  },
+
+  setAttackCooldown: (id: string, ticks: number): void => {
+    const player = players.get(id);
+    if (player?.combat) {
+      player.combat.attackCooldown = ticks;
+    }
+  },
+
+  decrementAttackCooldown: (id: string): void => {
+    const player = players.get(id);
+    if (player?.combat && player.combat.attackCooldown > 0) {
+      player.combat.attackCooldown--;
+    }
+  },
+
+  getEquipment: (id: string): Player['equipment'] | undefined => {
+    const player = players.get(id);
+    return player?.equipment;
+  },
+
+  setEquipment: (id: string, slot: keyof Player['equipment'], itemId: string | undefined): void => {
+    const player = players.get(id);
+    if (player) {
+      if (!player.equipment) player.equipment = {};
+      if (itemId === undefined) {
+        delete (player.equipment as any)[slot];
+      } else {
+        (player.equipment as any)[slot] = itemId;
+      }
+    }
+  },
+
+  getEquipmentBonuses: (id: string): Player['equipmentBonuses'] => {
+    const player = players.get(id);
+    if (!player) {
+      return {
+        attackStab: 0,
+        attackSlash: 0,
+        attackCrush: 0,
+        attackRanged: 0,
+        attackMagic: 0,
+        defenseStab: 0,
+        defenseSlash: 0,
+        defenseCrush: 0,
+        defenseRanged: 0,
+        defenseMagic: 0,
+        strength: 0,
+        rangedStrength: 0,
+        magicDamage: 0,
+        prayer: 0,
+      };
+    }
+
+    const bonuses: Player['equipmentBonuses'] = {
+      attackStab: 0,
+      attackSlash: 0,
+      attackCrush: 0,
+      attackRanged: 0,
+      attackMagic: 0,
+      defenseStab: 0,
+      defenseSlash: 0,
+      defenseCrush: 0,
+      defenseRanged: 0,
+      defenseMagic: 0,
+      strength: 0,
+      rangedStrength: 0,
+      magicDamage: 0,
+      prayer: 0,
+    };
+
+    const equipment = player.equipment;
+    if (!equipment) return bonuses;
+
+    const weaponConfig = equipment.mainHand ? WEAPON_CONFIG[equipment.mainHand] : null;
+    if (weaponConfig) {
+      if (weaponConfig.attackStab) bonuses.attackStab += weaponConfig.attackStab;
+      if (weaponConfig.attackSlash) bonuses.attackSlash += weaponConfig.attackSlash;
+      if (weaponConfig.attackCrush) bonuses.attackCrush += weaponConfig.attackCrush;
+      if (weaponConfig.attackRanged) bonuses.attackRanged += weaponConfig.attackRanged;
+      if (weaponConfig.attackMagic) bonuses.attackMagic += weaponConfig.attackMagic;
+    }
+
+    const armorSlots: (keyof typeof equipment)[] = ['helm', 'chest', 'legs', 'cape', 'offHand'];
+    for (const slot of armorSlots) {
+      const itemId = equipment[slot];
+      if (itemId) {
+        const armorConfig = ARMOR_CONFIG[itemId];
+        if (armorConfig) {
+          bonuses.defenseStab += armorConfig.defenseStab;
+          bonuses.defenseSlash += armorConfig.defenseSlash;
+          bonuses.defenseCrush += armorConfig.defenseCrush;
+          bonuses.defenseRanged += armorConfig.defenseRanged;
+          bonuses.defenseMagic += armorConfig.defenseMagic;
+        }
+      }
+    }
+
+    return bonuses;
   },
 
   isAdmin: (username: string): boolean => {

@@ -8,11 +8,15 @@ const TICK_MS = 600;
 export function GameLoop() {
   const { 
     currentAction,
-    tickAction,
     isLoaded 
   } = useGameStore();
   
   const tickCountRef = useRef(0);
+  const tickActionRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    tickActionRef.current = () => useGameStore.getState().tickAction();
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -21,12 +25,12 @@ export function GameLoop() {
       tickCountRef.current += 1;
 
       if (currentAction) {
-        tickAction();
+        tickActionRef.current();
       }
     }, TICK_MS);
 
     return () => clearInterval(interval);
-  }, [isLoaded, currentAction, tickAction]);
+  }, [isLoaded, currentAction]);
 
   return null;
 }

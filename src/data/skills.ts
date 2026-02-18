@@ -6,6 +6,8 @@ export const SKILLS_CONFIG: Record<SkillKey, SkillDefinition> = {
   defense: { key: 'defense', name: 'Defense', xpPerLevel: 1.0 },
   mining: { key: 'mining', name: 'Mining', xpPerLevel: 1.0 },
   woodcutting: { key: 'woodcutting', name: 'Woodcutting', xpPerLevel: 1.0 },
+  fishing: { key: 'fishing', name: 'Fishing', xpPerLevel: 1.0 },
+  cooking: { key: 'cooking', name: 'Cooking', xpPerLevel: 1.0 },
 };
 
 export function xpToLevel(xp: number): number {
