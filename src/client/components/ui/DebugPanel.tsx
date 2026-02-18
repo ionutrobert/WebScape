@@ -1,9 +1,32 @@
 'use client';
 
 import { useGameStore } from '@/client/stores/gameStore';
+import { useEffect, useState } from 'react';
 
 export function DebugPanel() {
-  const { debugSettings, setDebugSettings, performanceSettings, setPerformanceSettings, position, tickStartTime, tickDuration } = useGameStore();
+  const debugSettings = useGameStore((s) => s.debugSettings);
+  const setDebugSettings = useGameStore((s) => s.setDebugSettings);
+  const performanceSettings = useGameStore((s) => s.performanceSettings);
+  const setPerformanceSettings = useGameStore((s) => s.setPerformanceSettings);
+  const position = useGameStore((s) => s.position);
+  
+  // Force re-render every 50ms for live tick progress
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (debugSettings.showTickInfo) {
+      const interval = setInterval(() => setTick((t) => t + 1), 50);
+      return () => clearInterval(interval);
+    }
+  }, [debugSettings.showTickInfo]);
+  
+  // Get fresh values directly from store
+  const store = useGameStore.getState();
+  const tickStartTime = store.tickStartTime;
+  const tickDuration = store.tickDuration;
+  
+  // Calculate progress with modulo
+  const elapsed = tickStartTime > 0 ? Date.now() - tickStartTime : 0;
+  const progress = Math.max(0, Math.min(100, (elapsed % tickDuration) / tickDuration * 100));
   
   const hasAnyEnabled = debugSettings.showTrueTile || debugSettings.showTickInfo || debugSettings.showCollisionMap;
   
@@ -27,7 +50,16 @@ export function DebugPanel() {
       {debugSettings.showTickInfo && (
         <div className="mb-3 pb-2 border-b border-red-800">
           <div className="font-bold text-red-300 mb-1">Tick Info</div>
-          <div>Progress: {tickStartTime > 0 ? Math.round((Date.now() - tickStartTime) / tickDuration * 100) : 0}%</div>
+          <div className="flex items-center gap-2 mb-1">
+            <span>Progress:</span>
+            <div className="flex-1 bg-stone-700 rounded h-2 overflow-hidden">
+              <div 
+                className="bg-amber-500 h-full"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="w-10 text-right">{Math.round(progress)}%</span>
+          </div>
           <div>Duration: {tickDuration}ms</div>
           <div>Visual: ({position.x.toFixed(2)}, {position.y.toFixed(2)})</div>
         </div>

@@ -4,10 +4,17 @@ import { useGameStore } from '@/client/stores/gameStore';
 import { PlayerModel, DEFAULT_APPEARANCE, PlayerAppearance } from './PlayerModel';
 import { usePositionInterpolation } from '@/client/lib/usePositionInterpolation';
 import { visualPositionRef } from '@/client/lib/visualPositionRef';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export function LocalPlayer() {
-  const { position, startPosition, facing, equipment, tickStartTime, tickDuration, debugSettings } = useGameStore();
+  // Use selectors like RemotePlayer to avoid stale closures
+  const position = useGameStore((s) => s.position);
+  const startPosition = useGameStore((s) => s.startPosition);
+  const facing = useGameStore((s) => s.facing);
+  const equipment = useGameStore((s) => s.equipment);
+  const tickStartTime = useGameStore((s) => s.tickStartTime);
+  const tickDuration = useGameStore((s) => s.tickDuration);
+  const debugSettings = useGameStore((s) => s.debugSettings);
   
   const { x, y, isMoving, movementProgress } = usePositionInterpolation(
     position.x, 
@@ -24,13 +31,13 @@ export function LocalPlayer() {
     visualPositionRef.y = y;
   }, [x, y]);
   
-  const appearance: PlayerAppearance = {
+  const appearance: PlayerAppearance = useMemo(() => ({
     ...DEFAULT_APPEARANCE,
     mainHand: equipment.mainHand || undefined,
     chest: equipment.chest || undefined,
     legs: equipment.legs || undefined,
     helm: equipment.helm || undefined,
-  };
+  }), [equipment]);
   
   return (
     <>

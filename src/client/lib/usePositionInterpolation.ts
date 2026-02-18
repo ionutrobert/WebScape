@@ -32,21 +32,18 @@ export function usePositionInterpolation(
   });
   
   const visualRef = useRef({ x: startX, y: startY });
-  const lastInputsRef = useRef({ startX, startY, targetX, targetY });
+  const lastPositionsRef = useRef({ startX, startY, targetX, targetY });
 
   useEffect(() => {
-    const inputsChanged = 
-      startX !== lastInputsRef.current.startX ||
-      startY !== lastInputsRef.current.startY ||
-      targetX !== lastInputsRef.current.targetX ||
-      targetY !== lastInputsRef.current.targetY;
+    const posChanged = 
+      startX !== lastPositionsRef.current.startX ||
+      startY !== lastPositionsRef.current.startY ||
+      targetX !== lastPositionsRef.current.targetX ||
+      targetY !== lastPositionsRef.current.targetY;
     
-    if (inputsChanged) {
-      // If we have a valid visual position and inputs changed, 
-      // start from where we ARE visually, not from the server's start position
-      // This prevents jumping when new tick arrives mid-animation
+    if (posChanged) {
+      // Continue from current visual position for smooth transitions
       if (animRef.current.startTime > 0) {
-        // Use current visual position as the new start to prevent jumping
         animRef.current.fromX = visualRef.current.x;
         animRef.current.fromY = visualRef.current.y;
       } else {
@@ -58,7 +55,7 @@ export function usePositionInterpolation(
       animRef.current.toY = targetY;
       animRef.current.startTime = 0;
       
-      lastInputsRef.current = { startX, startY, targetX, targetY };
+      lastPositionsRef.current = { startX, startY, targetX, targetY };
     }
   }, [startX, startY, targetX, targetY]);
 
@@ -72,7 +69,7 @@ export function usePositionInterpolation(
       return;
     }
 
-    // Start animation timer
+    // Start animation timer on first frame of movement
     if (anim.startTime === 0) {
       anim.startTime = state.clock.elapsedTime * 1000;
     }

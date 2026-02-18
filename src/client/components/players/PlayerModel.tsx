@@ -55,6 +55,7 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isRunning, mov
     walkPhase: 0,
     breathePhase: 0,
     prevMovementProgress: 0,
+    lastMoveTime: 0,
   });
   const legLeftGroupRef = useRef<THREE.Group>(null);
   const legRightGroupRef = useRef<THREE.Group>(null);
@@ -71,17 +72,27 @@ export function PlayerModel({ x, y, facing, appearance, isMoving, isRunning, mov
     
     const anim = animationState.current;
     const progress = movementProgress ?? 0;
-    const isCurrentlyMoving = isMoving && progress < 1;
+    const now = performance.now();
+    
+    // Track when we were last moving
+    if (isMoving && progress < 1) {
+      anim.lastMoveTime = now;
+    }
+    
+    // Keep animating for 100ms after movement stops (grace period for tick transitions)
+    const timeSinceMove = now - anim.lastMoveTime;
+    const isCurrentlyMoving = (isMoving && progress < 1) || timeSinceMove < 100;
     
     if (isCurrentlyMoving) {
-      const deltaProgress = progress - anim.prevMovementProgress;
+      let deltaProgress = progress - anim.prevMovementProgress;
       
+      // Handle wraparound from ~1.0 to 0 when new tick starts
       if (deltaProgress < -0.5) {
-        anim.walkPhase = 0;
-      } else {
-        const speedMultiplier = isRunning ? 2 : 1;
-        anim.walkPhase += deltaProgress * Math.PI * 2 * speedMultiplier;
+        deltaProgress = progress + (1 - anim.prevMovementProgress);
       }
+      
+      const speedMultiplier = isRunning ? 2 : 1;
+      anim.walkPhase += deltaProgress * Math.PI * 2 * speedMultiplier;
       anim.prevMovementProgress = progress;
       
       const walkPhase = anim.walkPhase;

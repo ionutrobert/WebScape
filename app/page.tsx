@@ -55,6 +55,7 @@ export default function GamePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [tickProgress, setTickProgress] = useState(0);
   
   const { 
     xp, inventory, chatLog, isLoaded, players,
@@ -63,8 +64,23 @@ export default function GamePage() {
     setPlayerId, setPlayers, playerId, loadClientSettings, setIsAdmin,
     setTargetDestination, camera, cameraRestored,
     debugSettings, setDebugSettings, performanceSettings, setPerformanceSettings,
-    position, tickStartTime, tickDuration
+    position
   } = useGameStore();
+
+  // Update tick progress every 50ms
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const store = useGameStore.getState();
+      const ts = store.tickStartTime;
+      const td = store.tickDuration;
+      if (ts > 0) {
+        const elapsed = Date.now() - ts;
+        const progress = Math.max(0, Math.min(100, (elapsed % td) / td * 100));
+        setTickProgress(progress);
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -148,7 +164,7 @@ export default function GamePage() {
         useGameStore.getState().setTargetDestination(null);
       }
       
-      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY }, pos.tickStartTime);
+      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY });
       if (pos.facing) {
         useGameStore.getState().setFacing(pos.facing as any);
       }
@@ -347,8 +363,17 @@ export default function GamePage() {
               <div className="bg-stone-900 border border-stone-700 rounded p-3">
                 <div className="font-bold text-amber-500 mb-2 text-sm">Tick Info</div>
                 <div className="space-y-1 text-xs text-stone-400">
-                  <div>Progress: {tickStartTime > 0 ? Math.round((Date.now() - tickStartTime) / tickDuration * 100) : 0}%</div>
-                  <div>Duration: {tickDuration}ms</div>
+                  <div className="flex items-center gap-2">
+                    <span>Progress:</span>
+                    <div className="flex-1 bg-stone-700 rounded h-2 overflow-hidden">
+                      <div 
+                        className="bg-amber-500 h-full"
+                        style={{ width: `${tickProgress}%` }}
+                      />
+                    </div>
+                    <span className="w-10 text-right">{Math.round(tickProgress)}%</span>
+                  </div>
+                  <div>Duration: {useGameStore.getState().tickDuration}ms</div>
                   <div>Visual: ({position.x.toFixed(2)}, {position.y.toFixed(2)})</div>
                 </div>
               </div>
