@@ -305,9 +305,27 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? pos.x === state.targetDestination.x &&
           pos.y === state.targetDestination.y
         : true;
+      
+      // Calculate facing based on movement direction
+      let newFacing: FacingDirection = state.facing;
+      if (startPos && (startPos.x !== pos.x || startPos.y !== pos.y)) {
+        const dx = pos.x - startPos.x;
+        const dy = pos.y - startPos.y;
+        
+        if (dx > 0 && dy === 0) newFacing = "east";
+        else if (dx < 0 && dy === 0) newFacing = "west";
+        else if (dx === 0 && dy > 0) newFacing = "south";
+        else if (dx === 0 && dy < 0) newFacing = "north";
+        else if (dx > 0 && dy > 0) newFacing = "southeast";
+        else if (dx > 0 && dy < 0) newFacing = "northeast";
+        else if (dx < 0 && dy > 0) newFacing = "southwest";
+        else if (dx < 0 && dy < 0) newFacing = "northwest";
+      }
+      
       return {
         position: pos,
         startPosition: startPos || pos,
+        facing: newFacing,
         isMoving: !hasReachedTarget,
         tickStartTime: tickStartTime ?? state.tickStartTime,
       };
@@ -338,8 +356,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     >,
     tickStartTime?: number,
   ) =>
-    set(() => ({
+    set((state) => ({
       players,
+      tickStartTime: tickStartTime ?? state.tickStartTime,
     })),
 
   setCamera: (camera: Partial<CameraState>) => {

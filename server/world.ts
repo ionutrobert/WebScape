@@ -1,13 +1,13 @@
 import { WorldObject } from './types';
-import { OBJECTS_CONFIG, INITIAL_WORLD_OBJECTS } from './config';
+import { OBJECTS_CONFIG, INITIAL_WORLD_OBJECTS, WORLD_SIZE } from './config';
 import { CollisionManager } from './collision';
 import { getWorldConfig, getWorldObjects, serverDb } from './database';
 
 let collisionManager: CollisionManager;
 let worldObjects: WorldObject[] = [];
 let worldTiles: { x: number; y: number; tileType: string; height: number }[] = [];
-let worldWidth = 20;
-let worldHeight = 20;
+let worldWidth = WORLD_SIZE;
+let worldHeight = WORLD_SIZE;
 
 async function loadTiles(): Promise<void> {
   const dbTiles = await serverDb.worldTile.findMany();

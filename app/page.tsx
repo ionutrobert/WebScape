@@ -310,6 +310,10 @@ export default function GamePage() {
           .getState()
           .setRunState(pos.isRunning ?? false, pos.runEnergy);
       }
+      // Update tick start time for animation sync
+      if (pos.tickStartTime) {
+        useGameStore.getState().tickStartTime = pos.tickStartTime;
+      }
     });
 
     newSocket.on(
@@ -593,7 +597,7 @@ export default function GamePage() {
                       />
                     </div>
                     <div className="text-xs text-stone-500 mt-1">
-                      {xp[skill].toLocaleString()} XP
+                      {(xp[skill] ?? 0).toLocaleString()} XP
                     </div>
                   </div>
                 );

@@ -91,9 +91,30 @@ export function startHarvest(
     return { valid: false, reason: "Already harvesting." };
   }
 
-  const toolTier = player.equipment?.mainHand
+  // Check equipped tool first, then inventory
+  let toolTier = player.equipment?.mainHand
     ? getEquippedToolTier(player.equipment.mainHand, config.toolRequired)
     : 0;
+  
+  // If no equipped tool, check inventory
+  if (toolTier === 0 && player.inventory) {
+    for (const [itemId, qty] of Object.entries(player.inventory)) {
+      if (qty > 0) {
+        const itemTier = getEquippedToolTier(itemId, config.toolRequired);
+        if (itemTier > 0) {
+          toolTier = itemTier;
+          break;
+        }
+      }
+    }
+  }
+
+  if (toolTier === 0) {
+    return { 
+      valid: false, 
+      reason: `You need a ${config.toolRequired} to harvest this.` 
+    };
+  }
 
   activeHarvests.set(key, {
     playerId,

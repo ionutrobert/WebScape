@@ -1,7 +1,6 @@
 "use client";
 
 import { useGameStore, XpDrop } from "@/client/stores/gameStore";
-import { useThree } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { useRef, useMemo } from "react";
@@ -35,11 +34,7 @@ function getSkillColor(skill: string): string {
   return SKILL_COLORS[skill] || "#a855f7";
 }
 
-interface XpDropInstanceProps {
-  drop: XpDrop;
-}
-
-function XpDropInstance({ drop }: XpDropInstanceProps) {
+function XpDropInstance({ drop }: { drop: XpDrop }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const removeXpDrop = useGameStore((state) => state.removeXpDrop);
   
@@ -51,22 +46,32 @@ function XpDropInstance({ drop }: XpDropInstanceProps) {
   useFrame(() => {
     if (!meshRef.current) return;
     
-    const elapsed = performance.now() - drop.startTime;
-    const progress = elapsed / duration;
-    
-    if (progress >= 1) {
-      removeXpDrop(drop.id);
-      return;
+    try {
+      const elapsed = performance.now() - drop.startTime;
+      const progress = elapsed / duration;
+      
+      if (progress >= 1) {
+        removeXpDrop(drop.id);
+        return;
+      }
+      
+      meshRef.current.position.y = initialY + progress * 1.5;
+      
+      const material = meshRef.current.material as THREE.MeshBasicMaterial;
+      if (material) {
+        material.opacity = 1 - progress;
+      }
+    } catch (e) {
+      // Silently handle errors to prevent blue screen
     }
-    
-    meshRef.current.position.y = initialY + progress * 1.5;
-    
-    const material = meshRef.current.material as THREE.MeshBasicMaterial;
-    material.opacity = 1 - progress;
   });
   
   return (
-    <mesh ref={meshRef} position={[drop.x, initialY, drop.y]} renderOrder={999}>
+    <mesh 
+      ref={meshRef} 
+      position={[drop.x, initialY, drop.y]} 
+      renderOrder={999}
+    >
       <planeGeometry args={[1.2, 0.4]} />
       <meshBasicMaterial transparent opacity={1} depthTest={false} />
       <Text
@@ -75,7 +80,6 @@ function XpDropInstance({ drop }: XpDropInstanceProps) {
         color={color}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/arial.ttf"
         outlineWidth={0.02}
         outlineColor="#000000"
       >
@@ -87,11 +91,6 @@ function XpDropInstance({ drop }: XpDropInstanceProps) {
 
 export function XpDropManager() {
   const xpDrops = useGameStore((state) => state.xpDrops);
-  const cleanupXpDrops = useGameStore((state) => state.cleanupXpDrops);
-  
-  useFrame(() => {
-    cleanupXpDrops();
-  });
   
   return (
     <>

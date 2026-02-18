@@ -358,11 +358,32 @@ export function World({
       const worldObj = objectMap.get(`${x},${y}`);
       const dist = Math.abs(position.x - x) + Math.abs(position.y - y);
 
-      if (worldObj && worldObj.status === "active" && dist <= 1) {
+      if (!worldObj || worldObj.status !== "active") return;
+
+      // Calculate adjacent tile to walk to
+      let targetX = x;
+      let targetY = y;
+      
+      if (dist > 1) {
+        // Find adjacent tile to walk to
+        if (position.x < x) targetX = x - 1;
+        else if (position.x > x) targetX = x + 1;
+        
+        if (position.y < y) targetY = y - 1;
+        else if (position.y > y) targetY = y + 1;
+        
+        // Walk to adjacent tile first
+        if (targetX !== position.x || targetY !== position.y) {
+          onMove(targetX, targetY);
+        }
+      }
+      
+      // If adjacent, harvest directly
+      if (dist <= 1) {
         onHarvest(x, y, worldObj.definitionId);
       }
     },
-    [position, objectMap, onHarvest],
+    [position, objectMap, onMove, onHarvest],
   );
 
   const renderObject = (

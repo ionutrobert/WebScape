@@ -57,7 +57,11 @@ export async function loadPlayer(username: string): Promise<PlayerData | null> {
     y: player.y,
     facing: player.facing,
     skills: player.skills.reduce((acc, s) => ({ ...acc, [s.skill]: s.xp }), {}),
-    inventory: player.inventory.reduce((acc, s) => s.itemId ? { ...acc, [s.itemId]: s.quantity } : acc, {}),
+    inventory: {
+      bronze_pickaxe: 1,
+      bronze_axe: 1,
+      ...(player.inventory.reduce((acc, s) => s.itemId ? { ...acc, [s.itemId]: s.quantity } : acc, {})),
+    },
   };
 }
 
@@ -143,7 +147,10 @@ export async function createPlayer(username: string): Promise<PlayerData> {
     y: player.y,
     facing: player.facing,
     skills: defaultSkills.reduce((acc, s) => ({ ...acc, [s.skill]: 0 }), {}),
-    inventory: {},
+    inventory: {
+      bronze_pickaxe: 1,
+      bronze_axe: 1,
+    },
   };
 }
 
