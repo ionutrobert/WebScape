@@ -13,6 +13,7 @@ import { GameLoop } from "@/client/components/GameLoop";
 import { GameScene } from "@/client/components/GameScene";
 import { XpDropManager } from "@/client/components/ui/XpDrop";
 import { ClickFeedback } from "@/client/components/ui/ClickFeedback";
+import { getCachedItemIcon } from "@/client/lib/osrsIcons";
 import { GAME_NAME } from "@/data/game";
 import { OBJECTS } from "@/data/objects";
 import { calculateFacing } from "@/client/lib/facing";
@@ -571,29 +572,44 @@ export default function GamePage() {
         <div className="flex-1 p-3 overflow-auto">
           {activeTab === "inventory" && (
             <div className="grid grid-cols-4 gap-1">
-              {(inventory || []).slice(0, 28).map((slot: any, i: number) => (
+              {(inventory || []).slice(0, 28).map((slot: any, i: number) => {
+                const iconUrl = slot ? getCachedItemIcon(slot.id) : null;
+                return (
                 <div
                   key={i}
                   className={`aspect-square bg-stone-900 border border-stone-600 rounded flex items-center justify-center ${slot ? "border-stone-500" : ""}`}
                 >
                   {slot && (
                     <div className="text-center">
-                      <div className="text-xl">
-                        {slot.id?.includes("ore")
-                          ? "🪨"
-                          : slot.id?.includes("log")
-                            ? "🪵"
-                            : slot.id === "coins"
-                              ? "💰"
-                              : "📦"}
-                      </div>
+                      {iconUrl ? (
+                        <img 
+                          src={iconUrl} 
+                          alt={slot.id}
+                          className="w-8 h-8 object-contain"
+                          onError={(e) => {
+                            // Fallback to emoji on error
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="text-xl">
+                          {slot.id?.includes("ore")
+                            ? "🪨"
+                            : slot.id?.includes("log")
+                              ? "🪵"
+                              : slot.id === "coins"
+                                ? "💰"
+                                : "📦"}
+                        </div>
+                      )}
                       {slot.qty > 1 && (
                         <div className="text-xs text-stone-400">{slot.qty}</div>
                       )}
                     </div>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
 
