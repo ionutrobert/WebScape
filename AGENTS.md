@@ -791,11 +791,14 @@ interface PlayerModelProps {
 - **Equipment overlays** on player model
 
 ### OSRS 3D Models & Animations
-- **Source options:**
-  - RuneLite Creator's Kit: Export OSRS models from game
-  - Mixamo: Auto-rig and animate character models
-  - Sketchfab: Free OSRS-style models
-  - Custom procedural models (current)
+- **Easy Sources (No Export Required):**
+  - **Free GLB Models**: https://opensource3dassets.com/ - 991+ CC0 3D assets
+  - **Polygonal Mind**: https://github.com/ToxSam/cc0-models-Polygonal-Mind - CC0 models
+  - **Sketchfab**: Search "medieval knight" → filter "Downloadable" → free
+  - **Mixamo** (https://mixamo.com): Upload any character → auto-rigged → add animations → export GLB
+- **Advanced (Requires Extraction):**
+  - RuneLite Model Exporter plugin: https://runelite.phyce.dev/model-exporter
+  - RuneBlend Blender add-on: https://github.com/tamateea/runeblend
 - **Required animations:**
   - Idle (breathing)
   - Walk (1 tile per 600ms tick)
@@ -807,6 +810,16 @@ interface PlayerModelProps {
   - Use `@react-three/drei useGLTF` for model loading
   - Use `useAnimations` hook for animation clips
   - Blend between animations smoothly
+  - Models go in: `public/assets/models/`
+  - Use `src/client/lib/modelLoader.ts` for loading
+
+### OSRS 2D Item Icons
+- **Easy Source:**
+  - OSRS Wiki: `https://oldschool.runescape.wiki/images/{ItemName}.png`
+  - Use `src/client/lib/osrsIcons.ts` to get icon URLs
+- **Advanced:**
+  - osrsbox-db (GitHub): Full item database with PNG icons
+  - https://github.com/osrsbox/osrsbox-db
 
 ## Movement & Combat
 
