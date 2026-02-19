@@ -687,10 +687,14 @@ interface PlayerModelProps {
 - [ ] Run energy UI not working properly
 - [ ] Hover tooltip not showing
 - [ ] Right-click menu incomplete (Walk here, Mine, Chop, etc.)
+- [ ] Right-click menu: Add inventory options (Use, Drop, Equip, Examine)
+- [ ] Equipment tab: Add all 14 OSRS equipment slots
+- [ ] Equipment bonuses not displayed in UI
 
 ### Animation
 - [ ] Blue screen flash on first resource harvest after login
 - [ ] Walk animation doesn't sync properly with movement
+- [ ] OSRS models not imported (using procedural models)
 
 ### Performance
 - [ ] FPS drops over time (suspected memory leak)
@@ -744,6 +748,65 @@ interface PlayerModelProps {
 ---
 
 # Features to Implement
+
+## New Features Priority (Feb 2026)
+
+### Right-Click Menu System
+- **Context-sensitive menu** appearing on right-click
+- **Inventory right-click options:**
+  - "Use" - Use item (eat food, drink potions, etc.)
+  - "Drop" - Drop item on ground
+  - "Equip" - Equip item (weapons, armor, tools)
+  - "Examine" - Show item description
+- **Ground right-click options:**
+  - "Walk here" - Walk to tile
+  - "Examine" - Show tile/object info
+- **Resource right-click options:**
+  - "Mine" - Start mining
+  - "Chop" - Start woodcutting
+  - "Walk here" - Approach resource
+- **Player right-click options:**
+  - "Walk here" - Walk to player
+  - "Trade" - Request trade
+  - "Follow" - Follow player
+
+### Full Equipment System (OSRS-style)
+- **14 Equipment slots:**
+  1. Head (Helm)
+  2. Cape
+  3. Neck (Amulet)
+  4. Main Hand (Weapon)
+  5. Body (Chest)
+  6. Off Hand (Shield)
+  7. Legs
+  8. Hands (Gloves)
+  9. Feet (Boots)
+  10. Ring
+  11. Ammunition (Arrows, bolts)
+  12. Quiver (for ranged)
+  13. Aura (cosmetic)
+  14. Pocket (cosmetic)
+- **Two-handed weapons** occupy Main Hand + Off Hand slots
+- **Equipment bonuses** displayed in equipment tab
+- **Equipment overlays** on player model
+
+### OSRS 3D Models & Animations
+- **Source options:**
+  - RuneLite Creator's Kit: Export OSRS models from game
+  - Mixamo: Auto-rig and animate character models
+  - Sketchfab: Free OSRS-style models
+  - Custom procedural models (current)
+- **Required animations:**
+  - Idle (breathing)
+  - Walk (1 tile per 600ms tick)
+  - Run (2 tiles per tick)
+  - Attack (melee, ranged, magic)
+  - Harvest (mining, woodcutting)
+  - Emotes
+- **Implementation:**
+  - Use `@react-three/drei useGLTF` for model loading
+  - Use `useAnimations` hook for animation clips
+  - Blend between animations smoothly
 
 ## Movement & Combat
 
