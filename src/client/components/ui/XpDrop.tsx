@@ -1,10 +1,7 @@
 "use client";
 
 import { useGameStore, XpDrop } from "@/client/stores/gameStore";
-import { useFrame } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
+import { useEffect, useState, useRef } from "react";
 
 const SKILL_COLORS: Record<string, string> = {
   attack: "#ef4444",
@@ -34,69 +31,74 @@ function getSkillColor(skill: string): string {
   return SKILL_COLORS[skill] || "#a855f7";
 }
 
-function XpDropInstance({ drop }: { drop: XpDrop }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const removeXpDrop = useGameStore((state) => state.removeXpDrop);
+function XpDropItem({ drop, index, onRemove }: { drop: XpDrop; index: number; onRemove: () => void }) {
+  const [opacity, setOpacity] = useState(1);
+  const [offsetY, setOffsetY] = useState(0);
+  const startTimeRef = useRef(Date.now());
   
-  const initialY = 1.2;
-  const duration = 2000;
-  
-  const color = useMemo(() => getSkillColor(drop.skill), [drop.skill]);
-  
-  useFrame(() => {
-    if (!meshRef.current) return;
+  useEffect(() => {
+    startTimeRef.current = Date.now();
     
-    try {
-      const elapsed = performance.now() - drop.startTime;
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const duration = 1800; // Shorter duration
       const progress = elapsed / duration;
       
       if (progress >= 1) {
-        removeXpDrop(drop.id);
+        clearInterval(interval);
+        onRemove();
         return;
       }
       
-      meshRef.current.position.y = initialY + progress * 1.5;
-      
-      const material = meshRef.current.material as THREE.MeshBasicMaterial;
-      if (material) {
-        material.opacity = 1 - progress;
-      }
-    } catch (e) {
-      // Silently handle errors to prevent blue screen
-    }
-  });
+      setOpacity(1 - progress);
+      setOffsetY(progress * 40);
+    }, 50);
+    
+    return () => clearInterval(interval);
+  }, [onRemove]);
+  
+  const color = getSkillColor(drop.skill);
   
   return (
-    <mesh 
-      ref={meshRef} 
-      position={[drop.x, initialY, drop.y]} 
-      renderOrder={999}
+    <div
+      style={{
+        position: "absolute",
+        right: "20px",
+        bottom: `${80 + (index * 30)}px`, // Stack from bottom up
+        transform: `translateY(${offsetY}px)`,
+        opacity,
+        pointerEvents: "none",
+        fontSize: "18px",
+        fontWeight: "bold",
+        color,
+        textShadow: "1px 1px 0 #000, -1px -1px 0 #000",
+        whiteSpace: "nowrap",
+        zIndex: 1000,
+        transition: "opacity 0.1s",
+      }}
     >
-      <planeGeometry args={[1.2, 0.4]} />
-      <meshBasicMaterial transparent opacity={1} depthTest={false} />
-      <Text
-        position={[0, 0, 0.01]}
-        fontSize={0.25}
-        color={color}
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#000000"
-      >
-        +{drop.amount}
-      </Text>
-    </mesh>
+      +{drop.amount} {drop.skill}
+    </div>
   );
 }
 
 export function XpDropManager() {
   const xpDrops = useGameStore((state) => state.xpDrops);
+  const removeXpDrop = useGameStore((state) => state.removeXpDrop);
+  
+  // Only show the most recent XP drops (max 5)
+  const visibleDrops = xpDrops.slice(-5);
   
   return (
-    <>
-      {xpDrops.map((drop) => (
-        <XpDropInstance key={drop.id} drop={drop} />
+    <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "200px", pointerEvents: "none" }}>
+      {visibleDrops.map((drop, idx) => (
+        <XpDropItem 
+          key={drop.id} 
+          drop={drop} 
+          index={idx}
+          onRemove={() => removeXpDrop(drop.id)} 
+        />
       ))}
-    </>
+    </div>
   );
 }

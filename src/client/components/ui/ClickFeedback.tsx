@@ -4,8 +4,9 @@ import { useGameStore } from '@/client/stores/gameStore';
 import { useEffect, useRef } from 'react';
 
 export function ClickFeedback() {
-  const { clickFeedbacks, removeClickFeedback, cleanupClickFeedbacks } = useGameStore();
+  const { clickFeedbacks, cleanupClickFeedbacks } = useGameStore();
   const cleanupRef = useRef<number | null>(null);
+  const processedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     cleanupRef.current = window.setInterval(cleanupClickFeedbacks, 100);
@@ -18,12 +19,14 @@ export function ClickFeedback() {
 
   useEffect(() => {
     clickFeedbacks.forEach((fb) => {
-      const timeout = setTimeout(() => {
-        removeClickFeedback(fb.id);
+      if (processedRef.current.has(fb.id)) return;
+      processedRef.current.add(fb.id);
+      setTimeout(() => {
+        processedRef.current.delete(fb.id);
+        cleanupClickFeedbacks();
       }, 200);
-      return () => clearTimeout(timeout);
     });
-  }, [clickFeedbacks, removeClickFeedback]);
+  }, [clickFeedbacks, cleanupClickFeedbacks]);
 
   if (clickFeedbacks.length === 0) return null;
 

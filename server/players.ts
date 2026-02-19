@@ -25,6 +25,8 @@ export const playerManager = {
       username,
       x,
       y,
+      prevX: x,
+      prevY: y,
       facing: 'south',
       inventory: {
         bronze_pickaxe: 1,

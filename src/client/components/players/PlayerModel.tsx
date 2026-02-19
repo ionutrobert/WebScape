@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { FacingDirection } from "@/shared/types";
 import { getRotationForFacing } from "@/client/lib/facing";
+import { visualPositionRef } from "@/client/lib/visualPositionRef";
 
 export interface PlayerAppearance {
   bodyColor: string;
@@ -15,8 +16,8 @@ export interface PlayerAppearance {
 }
 
 export interface PlayerModelProps {
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   facing: FacingDirection;
   appearance: PlayerAppearance;
   isMoving?: boolean;
@@ -51,8 +52,8 @@ function getItemColor(itemId?: string): string {
 }
 
 export function PlayerModel({
-  x,
-  y,
+  x = 0,
+  y = 0,
   facing,
   appearance,
   isMoving,
@@ -77,26 +78,35 @@ export function PlayerModel({
 
   const rotation = getRotationForFacing(facing);
 
+  useEffect(() => {
+    if (!groupRef.current) return;
+    groupRef.current.rotation.y = rotation;
+  }, [rotation]);
+
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    groupRef.current.rotation.y = rotation;
-
     const anim = animationState.current;
-    const progress = movementProgress ?? 0;
     const now = performance.now();
 
-    // Track when we were last moving
+    if (isLocalPlayer) {
+      groupRef.current.position.x = visualPositionRef.x;
+      groupRef.current.position.z = visualPositionRef.y;
+    } else {
+      groupRef.current.position.x = x ?? 0;
+      groupRef.current.position.z = y ?? 0;
+    }
+
+    const progress = movementProgress ?? 0;
+
     if (isMoving && progress < 1) {
       anim.lastMoveTime = now;
     }
 
-    // Keep animating for 100ms after movement stops (grace period for tick transitions)
     const timeSinceMove = now - anim.lastMoveTime;
     const isGracePeriod = !isMoving && timeSinceMove < 100;
     const isCurrentlyMoving = (isMoving && progress < 1) || isGracePeriod;
 
-    // Smooth amplitude transition for walk-to-idle transition
     const transitionSpeed = 8;
     if (isCurrentlyMoving) {
       anim.amplitude = Math.min(anim.amplitude + delta * transitionSpeed, 1);
@@ -108,13 +118,10 @@ export function PlayerModel({
       let deltaProgress: number;
 
       if (isGracePeriod) {
-        // Continue animation at constant speed during grace period to avoid snap
-        // Assuming 600ms tick duration
         deltaProgress = delta / 0.6;
       } else {
         deltaProgress = progress - anim.prevMovementProgress;
 
-        // Handle wraparound from ~1.0 to 0 when new tick starts
         if (deltaProgress < -0.5) {
           deltaProgress = progress + (1 - anim.prevMovementProgress);
         }
@@ -159,11 +166,9 @@ export function PlayerModel({
         armLeftGroupRef.current.rotation.x = breathe * 0.02;
 
       if (isHarvesting) {
-        // Chop/Mine animation
         const chopSpeed = 10;
         const chop = Math.sin((now / 1000) * chopSpeed);
         if (armRightGroupRef.current) {
-          // Swing from up (-Math.PI) to forward (-Math.PI/2)
           armRightGroupRef.current.rotation.x = -1.5 + chop * 0.8;
         }
       } else {
@@ -191,27 +196,22 @@ export function PlayerModel({
 
   return (
     <group ref={groupRef} position={[x, 0.31, y]}>
-      {/* Body group for breathing animation */}
       <group ref={bodyGroupRef}>
-        {/* Body - torso */}
         <mesh castShadow position={[0, 0.4, 0]}>
           <boxGeometry args={[0.4, 0.5, 0.25]} />
           <meshStandardMaterial color={chestColor} />
         </mesh>
 
-        {/* Belt */}
         <mesh position={[0, 0.18, 0]}>
           <boxGeometry args={[0.42, 0.05, 0.26]} />
           <meshStandardMaterial color="#4a3728" />
         </mesh>
 
-        {/* Head */}
         <mesh position={[0, 0.85, 0]} castShadow>
           <boxGeometry args={[0.3, 0.3, 0.3]} />
           <meshStandardMaterial color={appearance.headColor} />
         </mesh>
 
-        {/* Helmet (if equipped) */}
         {helmColor && (
           <mesh position={[0, 0.9, 0]} castShadow>
             <boxGeometry args={[0.34, 0.25, 0.34]} />
@@ -219,69 +219,57 @@ export function PlayerModel({
           </mesh>
         )}
 
-        {/* Face - eyes */}
         <group position={[0, 0.87, 0.15]}>
-          {/* Left eye - white */}
           <mesh position={[-0.06, 0.02, 0]}>
             <boxGeometry args={[0.08, 0.08, 0.02]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          {/* Left pupil */}
           <mesh position={[-0.06, 0.02, 0.02]}>
             <boxGeometry args={[0.04, 0.04, 0.02]} />
             <meshStandardMaterial color="#1a202c" />
           </mesh>
 
-          {/* Right eye - white */}
           <mesh position={[0.06, 0.02, 0]}>
             <boxGeometry args={[0.08, 0.08, 0.02]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          {/* Right pupil */}
           <mesh position={[0.06, 0.02, 0.02]}>
             <boxGeometry args={[0.04, 0.04, 0.02]} />
             <meshStandardMaterial color="#1a202c" />
           </mesh>
         </group>
 
-        {/* Nose */}
         <mesh position={[0, 0.8, 0.18]} castShadow>
           <boxGeometry args={[0.08, 0.1, 0.08]} />
           <meshStandardMaterial color={appearance.headColor} />
         </mesh>
 
-        {/* Mouth */}
         <mesh position={[0, 0.74, 0.15]}>
           <boxGeometry args={[0.12, 0.03, 0.02]} />
           <meshStandardMaterial color="#1a202c" />
         </mesh>
       </group>
 
-      {/* Left Arm - shoulder group */}
       <group ref={armLeftGroupRef} position={[-0.26, 0.6, 0]}>
         <mesh castShadow position={[0, -0.2, 0]}>
           <boxGeometry args={[0.12, 0.4, 0.12]} />
           <meshStandardMaterial color={chestColor} />
         </mesh>
-        {/* Hand */}
         <mesh castShadow position={[0, -0.45, 0]}>
           <boxGeometry args={[0.1, 0.1, 0.1]} />
           <meshStandardMaterial color={appearance.headColor} />
         </mesh>
       </group>
 
-      {/* Right Arm - shoulder group */}
       <group ref={armRightGroupRef} position={[0.26, 0.6, 0]}>
         <mesh castShadow position={[0, -0.2, 0]}>
           <boxGeometry args={[0.12, 0.4, 0.12]} />
           <meshStandardMaterial color={chestColor} />
         </mesh>
-        {/* Hand */}
         <mesh castShadow position={[0, -0.45, 0]}>
           <boxGeometry args={[0.1, 0.1, 0.1]} />
           <meshStandardMaterial color={appearance.headColor} />
         </mesh>
-        {/* Weapon in hand */}
         {weaponColor && (
           <mesh
             position={[0, -0.6, 0.15]}
@@ -294,26 +282,22 @@ export function PlayerModel({
         )}
       </group>
 
-      {/* Left Leg - hip group */}
       <group ref={legLeftGroupRef} position={[-0.1, 0.15, 0]}>
         <mesh castShadow position={[0, -0.2, 0]}>
           <boxGeometry args={[0.15, 0.4, 0.15]} />
           <meshStandardMaterial color={legsColor} />
         </mesh>
-        {/* Foot */}
         <mesh position={[0, -0.42, 0.03]}>
           <boxGeometry args={[0.14, 0.08, 0.2]} />
           <meshStandardMaterial color="#3d3229" />
         </mesh>
       </group>
 
-      {/* Right Leg - hip group */}
       <group ref={legRightGroupRef} position={[0.1, 0.15, 0]}>
         <mesh castShadow position={[0, -0.2, 0]}>
           <boxGeometry args={[0.15, 0.4, 0.15]} />
           <meshStandardMaterial color={legsColor} />
         </mesh>
-        {/* Foot */}
         <mesh position={[0, -0.42, 0.03]}>
           <boxGeometry args={[0.14, 0.08, 0.2]} />
           <meshStandardMaterial color="#3d3229" />

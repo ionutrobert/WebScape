@@ -15,6 +15,7 @@ import { XpDropManager } from "@/client/components/ui/XpDrop";
 import { ClickFeedback } from "@/client/components/ui/ClickFeedback";
 import { GAME_NAME } from "@/data/game";
 import { OBJECTS } from "@/data/objects";
+import { calculateFacing } from "@/client/lib/facing";
 import { io, Socket } from "socket.io-client";
 import { Backpack, User, Sword, Send, Activity } from "lucide-react";
 import { useFrame } from "@react-three/fiber";
@@ -98,6 +99,7 @@ export default function GamePage() {
     isMoving,
     setRunState,
     toggleRun,
+    setFacing,
   } = useGameStore();
 
   const [fillProgress, setFillProgress] = useState(0);
@@ -204,6 +206,7 @@ export default function GamePage() {
         myPlayerId = data.playerId;
         setStoreUsername(username);
         setPlayerId(data.playerId);
+        
         setWorldObjects(data.worldObjects);
         setWorldSize(data.worldWidth, data.worldHeight);
         setWorldTiles(data.worldTiles || []);
@@ -212,8 +215,15 @@ export default function GamePage() {
         }
         setIsAdmin(data.isAdmin || false);
 
+        // Debug: verify we found ourselves in the players list
         const me = data.players?.find((p) => p.id === data.playerId);
-        setPosition(me ? { x: me.x, y: me.y } : { x: 10, y: 10 });
+        if (me) {
+          console.log(`[Init] Setting position to (${me.x}, ${me.y}) for player ${data.playerId}`);
+          setPosition({ x: me.x, y: me.y });
+        } else {
+          console.warn(`[Init] Could not find self in players list, using default position`);
+          setPosition({ x: 10, y: 10 });
+        }
 
         useGameStore.getState().tickStartTime = data.tickStartTime;
         useGameStore.getState().tickDuration = data.tickDuration;
@@ -265,6 +275,7 @@ export default function GamePage() {
     );
 
     newSocket.on("players-update", (data: PlayersUpdate) => {
+      console.log(`[Players-Update] Received ${data.players.length} players, myPlayerId: ${myPlayerId}`);
       const playersMap: Record<
         string,
         {
@@ -272,6 +283,8 @@ export default function GamePage() {
           username: string;
           x: number;
           y: number;
+          startX?: number;
+          startY?: number;
           facing: string;
           isRunning?: boolean;
           isHarvesting?: boolean;
@@ -284,6 +297,8 @@ export default function GamePage() {
             username: p.username,
             x: p.x,
             y: p.y,
+            startX: p.startX,
+            startY: p.startY,
             facing: p.facing,
             isRunning: p.isRunning,
             isHarvesting: p.isHarvesting,
@@ -301,7 +316,8 @@ export default function GamePage() {
         useGameStore.getState().setTargetDestination(null);
       }
 
-      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY });
+      console.log(`[Position-Update] Moving to (${pos.x}, ${pos.y}) from (${pos.startX}, ${pos.startY})`);
+      setPosition({ x: pos.x, y: pos.y }, { x: pos.startX, y: pos.startY }, pos.tickStartTime);
       if (pos.facing) {
         useGameStore.getState().setFacing(pos.facing as any);
       }
@@ -309,10 +325,6 @@ export default function GamePage() {
         useGameStore
           .getState()
           .setRunState(pos.isRunning ?? false, pos.runEnergy);
-      }
-      // Update tick start time for animation sync
-      if (pos.tickStartTime) {
-        useGameStore.getState().tickStartTime = pos.tickStartTime;
       }
     });
 
@@ -352,7 +364,12 @@ export default function GamePage() {
     });
 
     newSocket.on("xp-gain", (data: { skill: string; amount: number }) => {
-      useGameStore.getState().addXpDrop(data.skill as any, data.amount, position.x, position.y);
+      const pos = useGameStore.getState().position;
+      useGameStore.getState().addXpDrop(data.skill as any, data.amount, pos.x, pos.y);
+    });
+
+    newSocket.on("skill-update", (data: { skill: string; xp: number }) => {
+      useGameStore.getState().setXp({ [data.skill]: data.xp } as any);
     });
   };
 
@@ -376,6 +393,8 @@ export default function GamePage() {
     if (screenX !== undefined && screenY !== undefined) {
       useGameStore.getState().addClickFeedback("action", screenX, screenY);
     }
+    const facing = calculateFacing(position.x, position.y, x, y);
+    setFacing(facing);
     socket?.emit("harvest", { x, y, objectId });
   };
 
@@ -435,6 +454,7 @@ export default function GamePage() {
 
       <div className="flex-1 relative">
         <ClickFeedback />
+        <XpDropManager />
         <GameScene
           onMove={handleMove}
           onHarvest={handleHarvest}

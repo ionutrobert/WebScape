@@ -32,3 +32,7 @@ nul
 
 # Documentation (local only)
 *.md
+
+# Godot test projects (experimental)
+webscape-godot/
+server-godot/

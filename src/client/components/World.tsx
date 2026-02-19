@@ -1,6 +1,7 @@
 "use client";
 
 import { useGameStore } from "@/client/stores/gameStore";
+import type { HoverInfo } from "@/client/stores/gameStore";
 import { useRef, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import { WorldObjectState, TILE_COLORS, TileType } from "@/shared/types";
@@ -35,8 +36,8 @@ interface WorldProps {
   otherPlayers?: ServerPlayer[];
   worldWidth: number;
   worldHeight: number;
-  onMove: (x: number, y: number) => void;
-  onHarvest: (x: number, y: number, objectId: string) => void;
+  onMove: (x: number, y: number, screenX?: number, screenY?: number) => void;
+  onHarvest: (x: number, y: number, objectId: string, screenX?: number, screenY?: number) => void;
 }
 
 interface ChunkData {
@@ -86,10 +87,11 @@ function Tile({
   tileType?: string;
   isWalkable: boolean;
   opacity: number;
-  onClick: () => void;
+  onClick: (e: any) => void;
   children?: React.ReactNode;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const setHoverInfo = useGameStore((s) => s.setHoverInfo);
 
   const color = tileType ? TILE_COLORS_MAP[tileType] || 0x4a5568 : 0x4a5568;
 
@@ -99,14 +101,16 @@ function Tile({
       position={[x, 0, y]}
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        onClick(e);
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
-        document.body.style.cursor = "pointer";
+        document.body.style.cursor = "default";
+        setHoverInfo({ type: "ground", x, y } as HoverInfo);
       }}
       onPointerOut={() => {
         document.body.style.cursor = "default";
+        setHoverInfo({ type: null, x: 0, y: 0 } as HoverInfo);
       }}
     >
       <boxGeometry args={[0.95, 0.2, 0.95]} />
@@ -126,19 +130,36 @@ function MiningRock({
   isDepleted,
   opacity,
   onClick,
+  objectName,
 }: {
   x: number;
   y: number;
   isDepleted: boolean;
   opacity: number;
   onClick?: (e: any) => void;
+  objectName: string;
 }) {
+  const setHoverInfo = useGameStore((s) => s.setHoverInfo);
+
   return (
-    <group position={[0, 0.3, 0]} onClick={onClick}>
+    <group
+      position={[0, isDepleted ? 0.15 : 0.3, 0]}
+      onClick={onClick}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        if (!isDepleted) {
+          setHoverInfo({ type: "rock", name: objectName, x, y } as HoverInfo);
+        }
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHoverInfo({ type: null, x: 0, y: 0 } as HoverInfo);
+      }}
+    >
       <mesh castShadow>
         <boxGeometry args={[0.6, isDepleted ? 0.3 : 0.8, 0.5]} />
         <meshStandardMaterial
-          color={isDepleted ? "#4a5568" : "#b7791f"}
+          color={isDepleted ? "#718096" : "#b7791f"}
           transparent={opacity < 1}
           opacity={opacity}
         />
@@ -164,6 +185,7 @@ function Tree({
   treeType,
   opacity,
   onClick,
+  objectName,
 }: {
   x: number;
   y: number;
@@ -171,16 +193,31 @@ function Tree({
   treeType: string;
   opacity: number;
   onClick?: (e: any) => void;
+  objectName: string;
 }) {
+  const setHoverInfo = useGameStore((s) => s.setHoverInfo);
   const trunkColor = treeType === "oak_tree" ? "#744210" : "#5a4a3a";
   const leavesColor = treeType === "oak_tree" ? "#276749" : "#2f855a";
 
   return (
-    <group position={[0, 0, 0]} onClick={onClick}>
-      <mesh position={[0, isDepleted ? 0.2 : 0.6, 0]} castShadow>
-        <cylinderGeometry args={[0.15, 0.2, isDepleted ? 0.4 : 1.2, 6]} />
+    <group
+      position={[0, 0, 0]}
+      onClick={onClick}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        if (!isDepleted) {
+          setHoverInfo({ type: "tree", name: objectName, x, y } as HoverInfo);
+        }
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHoverInfo({ type: null, x: 0, y: 0 } as HoverInfo);
+      }}
+    >
+      <mesh position={[0, isDepleted ? 0.15 : 0.6, 0]} castShadow>
+        <cylinderGeometry args={[0.15, 0.2, isDepleted ? 0.3 : 1.2, 6]} />
         <meshStandardMaterial
-          color={isDepleted ? "#5a4a3a" : trunkColor}
+          color={isDepleted ? "#78716c" : trunkColor}
           transparent={opacity < 1}
           opacity={opacity}
         />
@@ -343,10 +380,10 @@ export function World({
   ]);
 
   const handleTileClick = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, e: any) => {
       const dist = Math.abs(position.x - x) + Math.abs(position.y - y);
       if (dist > 0) {
-        onMove(x, y);
+        onMove(x, y, e.clientX, e.clientY);
       }
     },
     [position, onMove],
@@ -355,32 +392,45 @@ export function World({
   const handleResourceClick = useCallback(
     (x: number, y: number, e: any) => {
       e.stopPropagation();
+      // Use EXACT coordinates from the clicked object - never derive or transform
       const worldObj = objectMap.get(`${x},${y}`);
-      const dist = Math.abs(position.x - x) + Math.abs(position.y - y);
-
-      if (!worldObj || worldObj.status !== "active") return;
-
-      // Calculate adjacent tile to walk to
-      let targetX = x;
-      let targetY = y;
+      if (!worldObj) return;
       
-      if (dist > 1) {
-        // Find adjacent tile to walk to
-        if (position.x < x) targetX = x - 1;
-        else if (position.x > x) targetX = x + 1;
-        
-        if (position.y < y) targetY = y - 1;
-        else if (position.y > y) targetY = y + 1;
-        
-        // Walk to adjacent tile first
-        if (targetX !== position.x || targetY !== position.y) {
-          onMove(targetX, targetY);
-        }
+      // Double-check: the object at these exact coords must match what we expect
+      if (worldObj.position.x !== x || worldObj.position.y !== y) return;
+      
+      const dx = x - position.x;
+      const dy = y - position.y;
+      const dist = Math.abs(dx) + Math.abs(dy);
+
+      if (worldObj.status !== "active") return;
+
+      // If already adjacent (orthogonally), harvest directly
+      if (dist === 1) {
+        onHarvest(x, y, worldObj.definitionId, e.clientX, e.clientY);
+        return;
+      }
+
+      // Need to walk to an ORTHOGONALLY adjacent tile to the resource
+      // Valid adjacent tiles: (x-1, y), (x+1, y), (x, y-1), (x, y+1)
+      // Must be exactly 1 tile away in one direction, 0 in the other
+      let targetX = position.x;
+      let targetY = position.y;
+      
+      // Find the best orthogonal path - prefer the axis with greater distance
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        // Move horizontally first, then to the resource's y
+        targetX = dx > 0 ? x - 1 : x + 1;
+        targetY = y; // Will end up at (x-1, y) or (x+1, y)
+      } else {
+        // Move vertically first, then to the resource's x
+        targetX = x; // Will end up at (x, y-1) or (x, y+1)
+        targetY = dy > 0 ? y - 1 : y + 1;
       }
       
-      // If adjacent, harvest directly
-      if (dist <= 1) {
-        onHarvest(x, y, worldObj.definitionId);
+      // Only move if we have a valid target
+      if (targetX !== position.x || targetY !== position.y) {
+        onMove(targetX, targetY, e.clientX, e.clientY);
       }
     },
     [position, objectMap, onMove, onHarvest],
@@ -396,28 +446,34 @@ export function World({
 
     const isDepleted = worldObj.status === "depleted";
     const def = OBJECTS[worldObj.definitionId];
+    
+    // Use EXACT coordinates from worldObj - never from the loop variable
+    const objX = worldObj.position.x;
+    const objY = worldObj.position.y;
 
     if (def.toolRequired === "pickaxe") {
       return (
         <MiningRock
-          key={`${x},${y}`}
-          x={x}
-          y={y}
+          key={`${objX},${objY}`}
+          x={objX}
+          y={objY}
           isDepleted={isDepleted}
           opacity={opacity}
-          onClick={(e) => handleResourceClick(x, y, e)}
+          onClick={(e) => handleResourceClick(objX, objY, e)}
+          objectName={def.name}
         />
       );
     } else if (def.toolRequired === "axe") {
       return (
         <Tree
-          key={`${x},${y}`}
-          x={x}
-          y={y}
+          key={`${objX},${objY}`}
+          x={objX}
+          y={objY}
           isDepleted={isDepleted}
           treeType={worldObj.definitionId}
           opacity={opacity}
-          onClick={(e) => handleResourceClick(x, y, e)}
+          onClick={(e) => handleResourceClick(objX, objY, e)}
+          objectName={def.name}
         />
       );
     }
@@ -447,7 +503,7 @@ export function World({
             tileType={tileType}
             isWalkable={!worldObj || !isActive}
             opacity={opacity}
-            onClick={() => handleTileClick(x, y)}
+            onClick={(e) => handleTileClick(x, y, e)}
           >
             {worldObj && renderObject(x, y, worldObj, opacity)}
           </Tile>

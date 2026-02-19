@@ -176,6 +176,8 @@ export interface ServerPlayer {
   username: string;
   x: number;
   y: number;
+  startX?: number;
+  startY?: number;
   facing: string;
   isRunning?: boolean;
   runEnergy?: number;

@@ -74,6 +74,10 @@ export function tick() {
       skill: config.skillType || "mining",
       amount: config.xp,
     });
+    io.to(harvest.playerId).emit("skill-update", {
+      skill: config.skillType || "mining",
+      xp: playerManager.getSkillXp(harvest.playerId)[config.skillType || "mining"] || 0,
+    });
   }
 
   for (const harvest of completed) {

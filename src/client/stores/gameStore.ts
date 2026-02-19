@@ -84,6 +84,8 @@ interface GameState {
       username: string;
       x: number;
       y: number;
+      startX?: number;
+      startY?: number;
       facing: string;
       isRunning?: boolean;
       isHarvesting?: boolean;
@@ -138,6 +140,8 @@ interface GameState {
         username: string;
         x: number;
         y: number;
+        startX?: number;
+        startY?: number;
         facing: string;
         isRunning?: boolean;
         isHarvesting?: boolean;
@@ -349,6 +353,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         username: string;
         x: number;
         y: number;
+        startX?: number;
+        startY?: number;
         facing: string;
         isRunning?: boolean;
         isHarvesting?: boolean;

@@ -13,9 +13,18 @@ export function GameLoop() {
   
   const tickCountRef = useRef(0);
   const tickActionRef = useRef<() => void>(() => {});
+  const currentActionRef = useRef(currentAction);
 
   useEffect(() => {
-    tickActionRef.current = () => useGameStore.getState().tickAction();
+    currentActionRef.current = currentAction;
+  }, [currentAction]);
+
+  useEffect(() => {
+    tickActionRef.current = () => {
+      if (currentActionRef.current) {
+        useGameStore.getState().tickAction();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -23,14 +32,11 @@ export function GameLoop() {
 
     const interval = setInterval(() => {
       tickCountRef.current += 1;
-
-      if (currentAction) {
-        tickActionRef.current();
-      }
+      tickActionRef.current();
     }, TICK_MS);
 
     return () => clearInterval(interval);
-  }, [isLoaded, currentAction]);
+  }, [isLoaded]);
 
   return null;
 }

@@ -26,8 +26,13 @@ function findValidSpawnPosition(
   const width = world.getWidth();
   const height = world.getHeight();
 
+  const isOccupied = (x: number, y: number) => {
+    const players = playerManager.getAll();
+    return players.some((p) => p.x === x && p.y === y);
+  };
+
   if (preferredX !== undefined && preferredY !== undefined) {
-    if (!world.isBlocked(preferredX, preferredY)) {
+    if (!world.isBlocked(preferredX, preferredY) && !isOccupied(preferredX, preferredY)) {
       return { x: preferredX, y: preferredY };
     }
   }
@@ -46,7 +51,8 @@ function findValidSpawnPosition(
           x < width &&
           y >= 0 &&
           y < height &&
-          !world.isBlocked(x, y)
+          !world.isBlocked(x, y) &&
+          !isOccupied(x, y)
         ) {
           return { x, y };
         }
@@ -80,7 +86,16 @@ io.on("connection", (socket) => {
 
     const dbPlayer = await getOrCreatePlayer(username);
 
-    const spawnPos = findValidSpawnPosition(dbPlayer.x, dbPlayer.y);
+    const currentPlayers = playerManager.getAll();
+    const isPositionOccupied = (x: number, y: number) => {
+      return currentPlayers.some((p) => p.x === x && p.y === y);
+    };
+
+    let spawnPos = { x: dbPlayer.x, y: dbPlayer.y };
+    if (dbPlayer.x === undefined || dbPlayer.y === undefined || isPositionOccupied(dbPlayer.x, dbPlayer.y)) {
+      spawnPos = findValidSpawnPosition(dbPlayer.x, dbPlayer.y);
+    }
+
     const player = playerManager.create(socket.id, username, spawnPos.x, spawnPos.y);
 
     if (dbPlayer.inventory) {

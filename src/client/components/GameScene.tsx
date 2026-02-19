@@ -4,7 +4,6 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { World } from "./World";
-import { XpDropManager } from "./ui/XpDrop";
 import { useGameStore } from "@/client/stores/gameStore";
 import { Socket } from "socket.io-client";
 import * as THREE from "three";
@@ -34,6 +33,31 @@ function CameraController() {
   const targetRef = useRef(new THREE.Vector3(10, 0, 10));
   const initialized = useRef(false);
   const prevCameraRestored = useRef(cameraRestored);
+  const pendingCameraUpdate = useRef<{theta?: number; phi?: number; distance?: number} | null>(null);
+  const updateTimeoutRef = useRef<number | null>(null);
+
+  const debouncedSetCamera = (updates: {theta?: number; phi?: number; distance?: number}) => {
+    pendingCameraUpdate.current = { ...pendingCameraUpdate.current, ...updates };
+    
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    updateTimeoutRef.current = window.setTimeout(() => {
+      if (pendingCameraUpdate.current) {
+        setCamera(pendingCameraUpdate.current);
+        pendingCameraUpdate.current = null;
+      }
+    }, 100);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const justRestored = cameraRestored && !prevCameraRestored.current;
@@ -115,7 +139,7 @@ function CameraController() {
       camera.position.copy(newPos);
       camera.lookAt(targetRef.current);
 
-      setCamera({
+      debouncedSetCamera({
         theta: spherical.theta,
         phi: spherical.phi,
         distance: spherical.radius,
@@ -127,7 +151,7 @@ function CameraController() {
       camera.position.clone().sub(targetRef.current),
     );
     if (Math.abs(currentSpherical.radius - cameraState.distance) > 0.1) {
-      setCamera({ distance: currentSpherical.radius });
+      debouncedSetCamera({ distance: currentSpherical.radius });
     }
 
     const currentTheta = currentSpherical.theta;
@@ -136,7 +160,7 @@ function CameraController() {
       Math.abs(currentTheta - cameraState.theta) > 0.01 ||
       Math.abs(currentPhi - cameraState.phi) > 0.01
     ) {
-      setCamera({ theta: currentTheta, phi: currentPhi });
+      debouncedSetCamera({ theta: currentTheta, phi: currentPhi });
     }
 
     controlsRef.current.update();
@@ -185,8 +209,8 @@ function CameraController() {
 }
 
 interface GameSceneProps {
-  onMove: (x: number, y: number) => void;
-  onHarvest: (x: number, y: number, objectId: string) => void;
+  onMove: (x: number, y: number, screenX?: number, screenY?: number) => void;
+  onHarvest: (x: number, y: number, objectId: string, screenX?: number, screenY?: number) => void;
   socket?: Socket | null;
   players: Record<
     string,
@@ -238,7 +262,6 @@ export function GameScene({ onMove, onHarvest, players }: GameSceneProps) {
           onMove={onMove}
           onHarvest={onHarvest}
         />
-        <XpDropManager />
       </Suspense>
 
       <CameraController />
